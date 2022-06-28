@@ -4,6 +4,7 @@ from discord.ext.commands import Bot
 
 from .utils.helper import project_base_path
 from .pgsql import ConnectionWrapper
+from .cogs.cog_base import CogBase
 
 
 class Ranger(Bot):
@@ -22,7 +23,14 @@ class Ranger(Bot):
         if not self.persistent_views_added:
             logger.debug("Trying to re-register all views")
             # register views here
-            logger.debug("registration successful")
+
+            for cog in self.cogs:
+                cog_object: CogBase | discord.ext.commands.Cog
+                cog_object = self.get_cog(cog)
+                await cog_object.register_persistent_view()
+
+        logger.debug("registration successful")
+        self.persistent_views_added = True
         logger.info(f"Logged in as {self.user} - {self.user.id}")
 
     def load_custom_cogs(self):

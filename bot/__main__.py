@@ -18,7 +18,7 @@ try:
             from bot.bot import Ranger
 
             bot_ = Ranger(debug_guilds=[
-                829265067073339403,  # gala
+                int(os.getenv('GUILD_ID'))
             ], con_=con)
             token = os.getenv("DISCORD_TOKEN", None)
             if token is None:
@@ -29,7 +29,7 @@ try:
         logger.critical(f"Unable to connect to Discord. exit error {e}")
         raise
     except ImportError:
-        raise ImportError("Unable to import PVC_bot")
+        raise ImportError("Unable to import bot lib")
 
 except KeyboardInterrupt as e:
     logger.info(f"Exiting app...")
