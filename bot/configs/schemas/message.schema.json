@@ -4,86 +4,88 @@
   "title": "Message Schema",
   "description": "Settings for a Message object",
   "type": "object",
-  "properties": {
-    "title": "Message",
-    "description": "Message That will be sent",
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "integer",
-        "title": "Message ID",
-        "description": "ID of the message that is sent"
-      },
-      "embed": {
-        "type": "object",
-        "title": "Embed",
-        "description": "Embed Object to be sent with message",
-        "properties": {
-          "color": {
-            "type": "string",
-            "format": "color",
-            "title": "Color of left border of embed",
-            "default": "#26FFDF"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description",
-            "description": "Content of the embed"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title",
-            "description": "Title of the embed"
+  "definitions": {
+    "message": {
+      "title": "Message",
+      "description": "Message That will be sent",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "title": "Message ID",
+          "description": "ID of the message that is sent"
+        },
+        "embed": {
+          "type": "object",
+          "title": "Embed",
+          "description": "Embed Object to be sent with message",
+          "properties": {
+            "color": {
+              "type": "string",
+              "format": "color",
+              "title": "Color of left border of embed",
+              "default": "#26FFDF"
+            },
+            "description": {
+              "type": "string",
+              "title": "Description",
+              "description": "Content of the embed"
+            },
+            "title": {
+              "type": "string",
+              "title": "Title",
+              "description": "Title of the embed"
+            }
           }
-        }
-      },
-      "buttons": {
-        "type": "object",
-        "title": "View",
-        "description": "View Attached to the message",
-        "properties": {
-          "count": {
-            "type": "boolean",
-            "default": false,
-            "title": "Count",
-            "description": "Should the Labels of the button update with the member count of the role"
-          },
-          "list": {
-            "type": "array",
-            "maxItems": 25,
-            "title": "Buttons",
-            "items": {
-              "headerTemplate": "{{self.label}}",
-              "type": "object",
-              "title": "Button",
-              "properties": {
-                "emoji": {
-                  "type": "string",
-                  "pattern": "",
-                  "title": "Emoji",
-                  "description": "Emoji to be attached to the button"
-                },
-                "label": {
-                  "type": "string",
-                  "title": "Label",
-                  "descriptions": "Label of the button"
-                },
-                "role_id": {
-                  "type": "string",
-                  "pattern": "^[0-9]{18}$",
-                  "title": "Role ID",
-                  "description": "ID of Role to be given"
-                },
-                "style": {
-                  "type": "string",
-                  "enum": [
-                    "primary",
-                    "secondary",
-                    "success",
-                    "danger"
-                  ],
-                  "title": "Style",
-                  "description": "Style of the button see https://discord.com/developers/docs/interactions/message-components#button-object-button-styles for more"
+        },
+        "buttons": {
+          "type": "object",
+          "title": "View",
+          "description": "View Attached to the message",
+          "properties": {
+            "count": {
+              "type": "boolean",
+              "default": false,
+              "title": "Count",
+              "description": "Should the Labels of the button update with the member count of the role"
+            },
+            "list": {
+              "type": "array",
+              "maxItems": 25,
+              "title": "Buttons",
+              "items": {
+                "headerTemplate": "{{self.label}}",
+                "type": "object",
+                "title": "Button",
+                "properties": {
+                  "emoji": {
+                    "type": "string",
+                    "pattern": "",
+                    "title": "Emoji",
+                    "description": "Emoji to be attached to the button"
+                  },
+                  "label": {
+                    "type": "string",
+                    "title": "Label",
+                    "descriptions": "Label of the button"
+                  },
+                  "role_id": {
+                    "type": "string",
+                    "pattern": "^[0-9]{18}$",
+                    "title": "Role ID",
+                    "description": "ID of Role to be given"
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": [
+                      "primary",
+                      "secondary",
+                      "success",
+                      "danger"
+                    ],
+                    "title": "Style",
+                    "description": "Style of the button see https://discord.com/developers/docs/interactions/message-components#button-object-button-styles for more"
+                  }
                 }
               }
             }
