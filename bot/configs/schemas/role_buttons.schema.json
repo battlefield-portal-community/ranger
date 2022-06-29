@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/battlefield-portal-community/ranger/main/bot/configs/schemas/role_buttons.schema.json",
+  "title": "Role Buttons Config",
+  "description": "Config Schema for defining Roles Button Config",
+  "type": "object",
+  "properties": {
+    "channels": {
+      "title": "Channels",
+      "description": "List of channels",
+      "type": "array",
+      "format": "tabs",
+      "items": {
+        "headerTemplate":"{{self.name}}",
+        "type": "object",
+        "title": "Channel",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]{18}$",
+            "title": "Channel ID",
+            "description": "ID of the channel to post react buttons in"
+          },
+          "name": {
+            "type": "string",
+            "title": "Channel Name",
+            "options": {
+              "hidden": true
+            }
+          },
+          "groups": {
+            "title": "Groups",
+            "type": "array",
+            "format": "tabs",
+            "items": {
+              "headerTemplate": "{{self.group_name}}",
+              "type": "object",
+              "title": "Group",
+              "properties": {
+                "group_name": {
+                  "type": "string",
+                  "title": "Group  Name"
+                },
+                "disabled": {
+                  "title": "should this group be disabled",
+                  "default": false,
+                  "type": "boolean"
+                },
+                "message": {"$ref": "https://raw.githubusercontent.com/battlefield-portal-community/ranger/main/bot/configs/schemas/message.schema.json"}
+              },
+              "required": ["group_name"]
+            }
+          }
+        },
+        "required": ["id"]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1
+}
