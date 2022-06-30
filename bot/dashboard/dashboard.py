@@ -1,6 +1,7 @@
 import json
 import os
 import asyncio
+import secrets
 from pathlib import Path
 
 from loguru import logger
@@ -34,6 +35,13 @@ try:
         from fastapi.staticfiles import StaticFiles
         from fastapi.templating import Jinja2Templates
         from fastapi.middleware.cors import CORSMiddleware
+        from starlette_discord import DiscordOAuthClient
+        from starlette.middleware.sessions import SessionMiddleware
+        from starlette.responses import RedirectResponse
+
+        client_id = os.getenv("DISCORD_CLIENT_ID")
+        client_secret = os.getenv("DISCORD_SECRET")
+        redirect_uri = "http://0.0.0.0:5000/login/callback"
 
         origins = [
             "http://vmi656705.contaboserver.net:5000",
@@ -42,13 +50,8 @@ try:
         ]
 
         app = FastAPI()
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        discord_client = DiscordOAuthClient(client_id, client_secret, redirect_uri,
+                                            scopes=("email", "identify", "guilds"))
 
         dashboard_root = project_base_path / "dashboard"
         static_path = dashboard_root / "static"
@@ -72,6 +75,37 @@ try:
                 asyncio.create_task(bot.start(os.getenv("DISCORD_TOKEN")))
             else:
                 logger.debug("Server Debugging turned on... skipping starting bot")
+
+
+        @app.middleware('http')
+        async def check_for_login(request: Request, call_next):
+            if not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
+                logger.debug("Not logged in")
+                return RedirectResponse("/login")
+            else:
+                return await call_next(request)
+
+
+        @app.get('/login')
+        async def start_login():
+            return discord_client.redirect()
+
+
+        @app.get('/login/callback')
+        async def finish_login(request: Request, code: str):
+            async with discord_client.session(code) as session:
+                user = await session.identify()
+                guilds = await session.guilds()
+
+            logger.debug(f"user {user} with id {user.id} logged in....")
+            if int(os.getenv("GUILD_ID")) in [guild.id for guild in guilds]:
+                for guild in guilds:
+                    if int(os.getenv("GUILD_ID")) == guild.id and (guild.permissions & 0x0000000000000008):
+                        logger.debug(f"{user} is a admin")
+                        request.session["discord_user"] = str(user)
+                        return RedirectResponse("/")
+            else:
+                return None
 
 
         @app.get("/", response_class=HTMLResponse)
@@ -167,9 +201,17 @@ try:
             else:
                 return False
 
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(64))
 
 except ConnectionError as e:
     logger.critical(f"Unable to connect to Discord. exit error {e}")
     raise
-except ImportError:
-    raise ImportError("Unable to import bot lib")
+except ImportError as error:
+    raise ImportError(f"Unable to import bot lib {error}")
