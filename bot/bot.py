@@ -3,16 +3,14 @@ from loguru import logger
 from discord.ext.commands import Bot
 
 from .utils.helper import project_base_path
-from .pgsql import ConnectionWrapper
 from .cogs.cog_base import CogBase
 
 
 class Ranger(Bot):
-    def __init__(self, con_: ConnectionWrapper,  **options):
+    def __init__(self, **options):
         intents = discord.Intents.default()
         super().__init__(intents=intents, **options)
         self.persistent_views_added = False
-        self.con = con_
         self.cogs_list = [
             f"bot.cogs.{i.stem}"
             for i in (project_base_path / "cogs").glob("*.py")

@@ -15,7 +15,6 @@ Jinja2==3.1.2
 loguru==0.6.0
 MarkupSafe==2.1.1
 multidict==6.0.2
-psycopg2==2.9.3
 py-cord @ git+https://github.com/Pycord-Development/pycord@c8feeaf7dfc848483f45f99e1c3a1046197bd4b8
 pydantic==1.9.1
 pyrsistent==0.18.1

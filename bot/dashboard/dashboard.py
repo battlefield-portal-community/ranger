@@ -7,13 +7,13 @@ import psycopg2
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path
 
-try:
-    from ..pgsql import ConnectionWrapper
-
-    con = ConnectionWrapper()
-    con.ensure_base_tables()
-except psycopg2.OperationalError:
-    raise
+# try:
+#     from ..pgsql import ConnectionWrapper
+#
+#     con = ConnectionWrapper()
+#     con.ensure_base_tables()
+# except psycopg2.OperationalError:
+#     raise
 
 try:
     if not os.getenv('DB_DEBUG', None):
@@ -33,7 +33,7 @@ try:
         if os.getenv('DEBUG_SERVER', '').lower() != 'true':
             bot = Ranger(debug_guilds=[
                 int(os.getenv('GUILD_ID'))
-            ], con_=con)
+            ])
             bot.load_custom_cogs()
 
 
@@ -78,6 +78,7 @@ try:
                 }
             )
 
+
         async def return_file(config_name: str, config: bool = False, schema: bool = False) -> dict:
             if config or schema:
                 if files := await get_files(config_name):
@@ -85,6 +86,7 @@ try:
                         return json.load(file)
                 else:
                     return {config: 'Invalid'}
+
 
         @app.get('/raw/configs')
         async def return_config(config: str):
@@ -109,6 +111,7 @@ try:
             else:
                 return {'channel': {}}
 
+
         @app.post("/post/", status_code=201)
         async def save_config(request: Request, config: str):
             if files := await get_files(config):
@@ -117,6 +120,7 @@ try:
                     return {"saved": True}
             else:
                 return {"saved": False, "config": False}
+
 
         async def get_files(config_name: str) -> tuple[Path, Path] | bool:
             schema_files = [config_file for config_file in list((configs_path / "schemas").glob("*.schema.json"))]
@@ -135,6 +139,7 @@ try:
                 return config_file, configs_path / "schemas" / f"{config_name}.schema.json"
             else:
                 return False
+
 
         def ensure_defaults():
             for file in (configs_path / "defaults").glob("*.json"):
