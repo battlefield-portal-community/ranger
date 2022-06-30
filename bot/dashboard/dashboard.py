@@ -14,6 +14,14 @@ from ..utils.helper import project_base_path, configs_path
 # except psycopg2.OperationalError:
 #     raise
 
+
+def ensure_defaults():
+    for file in (configs_path / "defaults").glob("*.json"):
+        if not (config_file_path := configs_path / file.name).exists():
+            config_file_path.touch()
+            with open(file) as default, open(config_file_path, 'w') as config:
+                config.write(default.read())
+
 try:
     if not os.getenv('DB_DEBUG', None):
         from fastapi import FastAPI, Request
@@ -33,6 +41,7 @@ try:
             bot = Ranger(debug_guilds=[
                 int(os.getenv('GUILD_ID'))
             ])
+            ensure_defaults()  # blocking call
             bot.load_custom_cogs()
 
 
@@ -40,7 +49,6 @@ try:
         async def startup():
             logger.debug("Starting Bot....")
             if os.getenv('DEBUG_SERVER', '').lower() != 'true':
-                ensure_defaults()  # blocking call
                 asyncio.create_task(bot.start(os.getenv("DISCORD_TOKEN")))
             else:
                 logger.debug("Server Debugging turned on... skipping starting bot")
@@ -139,13 +147,6 @@ try:
             else:
                 return False
 
-
-        def ensure_defaults():
-            for file in (configs_path / "defaults").glob("*.json"):
-                if not (config_file_path := configs_path / file.name).exists():
-                    config_file_path.touch()
-                    with open(file) as default, open(config_file_path, 'w') as config:
-                        config.write(default.read())
 
 except ConnectionError as e:
     logger.critical(f"Unable to connect to Discord. exit error {e}")
