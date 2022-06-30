@@ -41,10 +41,11 @@ try:
 
         client_id = os.getenv("DISCORD_CLIENT_ID")
         client_secret = os.getenv("DISCORD_SECRET")
-        redirect_uri = "http://0.0.0.0:5000/login/callback"
+        redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
 
         origins = [
             "http://vmi656705.contaboserver.net:5000",
+            "https://vmi656705.contaboserver.net:5000",
             re.compile("http://0.0.0.0:*"),
             re.compile("http://localhost:*")
         ]
