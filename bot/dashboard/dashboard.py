@@ -185,7 +185,7 @@ try:
 
 
         async def get_files(config_name: str) -> tuple[Path, Path] | bool:
-            schema_files = [config_file for config_file in list((configs_path / "schemas").glob("*.schema.json"))]
+            schema_files = [config_file for config_file in list((configs_path / "schemas" / "ranger").glob("*.schema.json"))]
             if f"{config_name}.schema" in [file.stem for file in schema_files]:
                 config_file = configs_path / f"{config_name}.json"
                 confile_file_default = configs_path / "defaults" / f"{config_name}.json"
@@ -198,7 +198,7 @@ try:
 
                     with open(config_file, 'w') as file:
                         json.dump(default, file)
-                return config_file, configs_path / "schemas" / f"{config_name}.schema.json"
+                return config_file, configs_path / "schemas" / "ranger" / f"{config_name}.schema.json"
             else:
                 return False
 
