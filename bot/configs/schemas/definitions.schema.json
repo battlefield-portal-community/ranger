@@ -13,12 +13,15 @@
         "id": {
           "type": "integer",
           "title": "Message ID",
-          "description": "ID of the message that is sent"
+          "description": "ID of the message that is sent [Leave Empty, set by bot]"
         },
         "embed": {
           "type": "object",
           "title": "Embed",
           "description": "Embed Object to be sent with message",
+          "options": {
+            "collapsed": true
+          },
           "properties": {
             "color": {
               "type": "string",
@@ -42,6 +45,9 @@
           "type": "object",
           "title": "View",
           "description": "View Attached to the message",
+          "options": {
+            "collapsed": true
+          },
           "properties": {
             "count": {
               "type": "boolean",

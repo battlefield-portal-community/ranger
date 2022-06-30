@@ -11,15 +11,27 @@
       "type": "array",
       "format": "tabs",
       "items": {
-        "headerTemplate":"{{self.name}}",
+        "headerTemplate": "{{self.name}}",
         "type": "object",
         "title": "Channel",
         "properties": {
+          "saveConfigButton": {
+            "type": "button",
+            "title": "Save Config",
+            "propertyOrder": 1,
+            "options": {
+              "button": {
+                "action": "saveConfig",
+                "validated": true
+              }
+            }
+          },
           "id": {
             "type": "string",
             "pattern": "^[0-9]{18}$",
             "title": "Channel ID",
-            "description": "ID of the channel to post react buttons in"
+            "description": "ID of the channel to post react buttons in",
+            "propertyOrder": 2
           },
           "name": {
             "type": "string",
@@ -31,8 +43,9 @@
           "groups": {
             "title": "Groups",
             "type": "array",
-            "format": "tabs",
+            "format": "tabs-top",
             "items": {
+
               "headerTemplate": "{{self.group_name}}",
               "type": "object",
               "title": "Group",
@@ -44,15 +57,38 @@
                 "disabled": {
                   "title": "should this group be disabled",
                   "default": false,
-                  "type": "boolean"
+                  "type": "boolean",
+                  "format": "checkbox"
                 },
-                "message": {"$ref": "https://raw.githubusercontent.com/battlefield-portal-community/ranger/main/bot/configs/schemas/message.schema.json"}
+                "message": {
+                  "$ref": "http://localhost:5000/raw/configs/schema?config=definitions#/definitions/message"
+                }
               },
-              "required": ["group_name"]
+              "required": [
+                "group_name"
+              ]
+            },
+            "additionalProperties": false,
+            "minItems": 1,
+            "maxItems": 25,
+            "options": {
+              "collapsed": true
             }
           }
         },
-        "required": ["id"]
+        "required": [
+          "id"
+        ]
+      }
+    },
+    "goHomePageButton": {
+      "type": "button",
+      "title": "Home",
+      "propertyOrder": 1,
+      "options": {
+        "button": {
+          "action": "goHomePage"
+        }
       }
     }
   },

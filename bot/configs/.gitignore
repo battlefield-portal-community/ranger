@@ -4,3 +4,7 @@
 # ... except for this one.
 !.gitignore
 !applied_configs/
+!schemas/
+!schemas/*
+!defaults/
+!defaults/*
