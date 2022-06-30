@@ -6,6 +6,7 @@ from pathlib import Path
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path
 
+
 # try:
 #     from ..pgsql import ConnectionWrapper
 #
@@ -27,18 +28,34 @@ def ensure_defaults():
 
 try:
     if not os.getenv('DB_DEBUG', None):
+        import re
         from fastapi import FastAPI, Request
         from fastapi.responses import HTMLResponse
         from fastapi.staticfiles import StaticFiles
         from fastapi.templating import Jinja2Templates
+        from fastapi.middleware.cors import CORSMiddleware
 
-        from bot.bot import Ranger
+        origins = [
+            "http://vmi656705.contaboserver.net:5000",
+            re.compile("http://0.0.0.0:*"),
+            re.compile("http://localhost:*")
+        ]
 
         app = FastAPI()
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         dashboard_root = project_base_path / "dashboard"
         static_path = dashboard_root / "static"
         app.mount(str(static_path), StaticFiles(directory=static_path), name="static")
         templates = Jinja2Templates(directory=dashboard_root / "templates")
+
+        from bot.bot import Ranger
 
         if os.getenv('DEBUG_SERVER', '').lower() != 'true':
             bot = Ranger(debug_guilds=[

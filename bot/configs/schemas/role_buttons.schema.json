@@ -61,7 +61,7 @@
                   "format": "checkbox"
                 },
                 "message": {
-                  "$ref": "http://localhost:5000/raw/configs/schema?config=definitions#/definitions/message"
+                  "$ref": "http://0.0.0.0:5000/raw/configs/schema?config=definitions#/definitions/message"
                 }
               },
               "required": [
