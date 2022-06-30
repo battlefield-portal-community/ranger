@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/battlefield-portal-community/ranger/main/bot/configs/schemas/message.schema.json",
-  "title": "Message Schema",
-  "description": "Settings for a Message object",
+  "title": "Basic Blocks",
+  "description": "Schema for reusable blocks definitions",
   "type": "object",
   "definitions": {
     "message": {
