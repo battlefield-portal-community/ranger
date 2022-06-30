@@ -104,6 +104,15 @@ try:
             else:
                 return {'channel': {}}
 
+        @app.post("/post/", status_code=201)
+        async def save_config(request: Request, config: str):
+            config_folder = project_base_path / "configs"
+            if config in [json_file.stem for json_file in list(config_folder.glob("*.json"))]:
+                with open(config_folder / f"{config}.json", 'w') as file:
+                    json.dump(await request.json(), file, indent=2)
+                    return {"saved": True}
+            else:
+                return {"saved": False, "config": False}
 
 except ConnectionError as e:
     logger.critical(f"Unable to connect to Discord. exit error {e}")
