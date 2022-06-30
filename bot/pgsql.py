@@ -17,16 +17,19 @@ class ConnectionWrapper:
     try:
 
         logger.debug("Trying to connect to db")
-        con = psycopg2.connect(
-            database=os.getenv("POSTGRES_DB"),
-            user="postgres",
-            password="postgres",
-            host=os.getenv("PG_HOST", "db"),
-            port="5432"
-        )
-        logger.debug(
-            f"Connected to db {con.info.dbname} with user {con.info.user}"
-        )
+        if os.getenv('DISABLE_PG', '').lower() != 'true':
+            con = psycopg2.connect(
+                database=os.getenv("POSTGRES_DB"),
+                user="postgres",
+                password="postgres",
+                host=os.getenv("PG_HOST", "db"),
+                port="5432"
+            )
+            logger.debug(
+                f"Connected to db {con.info.dbname} with user {con.info.user}"
+            )
+        else:
+            logger.debug("PG database disabled, skipping connection.....")
 
     except psycopg2.OperationalError:
         logger.critical("Unable to Connect to DB")
