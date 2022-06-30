@@ -49,6 +49,7 @@
                             })
                             if ((await resp.json())['saved']){
                                 window.alert("Config Saved....")
+                                document.location.reload()
                             } else {
                                 window.alert("Config Not Saved....")
                             }
