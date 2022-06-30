@@ -3,7 +3,6 @@ import os
 import asyncio
 from pathlib import Path
 
-import psycopg2
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path
 
