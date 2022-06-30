@@ -6,3 +6,5 @@
 !applied_configs/
 !schemas/
 !schemas/*
+!defaults/
+!defaults/*

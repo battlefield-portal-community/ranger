@@ -30,10 +30,11 @@ try:
         app.mount(str(static_path), StaticFiles(directory=static_path), name="static")
         templates = Jinja2Templates(directory=dashboard_root / "templates")
 
-        bot = Ranger(debug_guilds=[
-            int(os.getenv('GUILD_ID'))
-        ], con_=con)
-        bot.load_custom_cogs()
+        if os.getenv('DEBUG_SERVER', '').lower() != 'true':
+            bot = Ranger(debug_guilds=[
+                int(os.getenv('GUILD_ID'))
+            ], con_=con)
+            bot.load_custom_cogs()
 
 
         @app.on_event("startup")
@@ -120,10 +121,16 @@ try:
             schema_files = [config_file for config_file in list((configs_path / "schemas").glob("*.schema.json"))]
             if f"{config_name}.schema" in [file.stem for file in schema_files]:
                 config_file = configs_path / f"{config_name}.json"
-                if not config_file.exists():
+                confile_file_default = configs_path / "defaults" / f"{config_name}.json"
+                if config_name != "definitions" and not config_file.exists():
                     config_file.touch()
+                    default = dict()
+                    if confile_file_default.exists():
+                        with open(confile_file_default) as file:
+                            default = json.load(file)
+
                     with open(config_file, 'w') as file:
-                        json.dump(dict(), file)
+                        json.dump(default, file)
                 return config_file, configs_path / "schemas" / f"{config_name}.schema.json"
             else:
                 return False
