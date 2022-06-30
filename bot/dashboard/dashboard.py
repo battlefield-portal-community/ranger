@@ -16,11 +16,14 @@ from ..utils.helper import project_base_path, configs_path
 
 
 def ensure_defaults():
+    logger.debug("Ensuring default config files")
+    logger.debug(configs_path)
     for file in (configs_path / "defaults").glob("*.json"):
         if not (config_file_path := configs_path / file.name).exists():
             config_file_path.touch()
             with open(file) as default, open(config_file_path, 'w') as config:
                 config.write(default.read())
+
 
 try:
     if not os.getenv('DB_DEBUG', None):
