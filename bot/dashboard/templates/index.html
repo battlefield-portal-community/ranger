@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Ranger Bot</title>
+        <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+        <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+        <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+
+        <script src="{{ url_for('static', path='/js/jsoneditor.js') }}"></script>
+        <script>
+            JSONEditor.defaults.theme = 'spectre';
+            JSONEditor.defaults.iconlib = 'spectre';
+            JSONEditor.defaults.options.ajax = true;
+        </script>
+    </head>
+    <body>
+        <div id='editor_holder'></div>
+        <script>
+            const element = document.getElementById('editor_holder');
+            const editor = new JSONEditor(element, {
+                schema: {{schema|tojson}},
+                startval: {{start_val|tojson}},
+                disable_array_add:true,
+                disable_array_delete:true,
+                disable_edit_json:true,
+                disable_properties:true,
+                no_additional_properties:true,
+                prompt_before_delete:true,
+
+
+            });
+            JSONEditor.defaults.callbacks = {
+                "button": {
+                    "openSettings": function (jseditor, e){
+                        let loc = document.location.href;
+                        document.location.href = `${loc}configs?config=${e.target.offsetParent.firstElementChild.textContent.trim()}`
+                    }
+                }
+            }
+        </script>
+    </body>
+</html>
