@@ -3,9 +3,7 @@ import os
 import asyncio
 from pathlib import Path
 
-import jsonschema
 import psycopg2
-from jsonschema import validate
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path
 
@@ -41,7 +39,10 @@ try:
         @app.on_event("startup")
         async def startup():
             logger.debug("Starting Bot....")
-            # asyncio.create_task(bot.start(os.getenv("DISCORD_TOKEN")))
+            if os.getenv('DEBUG_SERVER', '').lower() != 'true':
+                asyncio.create_task(bot.start(os.getenv("DISCORD_TOKEN")))
+            else:
+                logger.debug("Server Debugging turned on... skipping starting bot")
 
 
         @app.get("/", response_class=HTMLResponse)
