@@ -119,7 +119,12 @@ try:
         async def get_files(config_name: str) -> tuple[Path, Path] | bool:
             schema_files = [config_file for config_file in list((configs_path / "schemas").glob("*.schema.json"))]
             if f"{config_name}.schema" in [file.stem for file in schema_files]:
-                return configs_path / f"{config_name}.json", configs_path / "schemas" / f"{config_name}.schema.json"
+                config_file = configs_path / f"{config_name}.json"
+                if not config_file.exists():
+                    config_file.touch()
+                    with open(config_file, 'w') as file:
+                        json.dump(dict(), file)
+                return config_file, configs_path / "schemas" / f"{config_name}.schema.json"
             else:
                 return False
 
