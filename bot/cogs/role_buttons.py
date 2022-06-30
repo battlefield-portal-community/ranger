@@ -127,7 +127,7 @@ class RoleButtonsManger(CogBase):
                                 msg_id = msg.id
                             if not self.bot.persistent_views_added:
                                 self.bot.add_view(view=view, message_id=msg_id)
-                            message['id'] = msg_id
+                            message['id'] = str(msg_id)
 
             for file_path in [self.config_file_path, self.applied_config_path]:
                 with open(file_path, 'w') as file:

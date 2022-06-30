@@ -11,7 +11,8 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "integer",
+          "type": "string",
+          "pattern": "^[0-9]{18}$",
           "title": "Message ID",
           "description": "ID of the message that is sent [Leave Empty, set by bot]"
         },
