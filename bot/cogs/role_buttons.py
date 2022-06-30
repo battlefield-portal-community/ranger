@@ -115,7 +115,7 @@ class RoleButtonsManger(CogBase):
                                             logger.debug(f"Invalid Role {role_id} passed in json")
                             if "id" in message.keys():
                                 try:
-                                    msg_id = message['id']
+                                    msg_id = int(message['id'])
                                     msg = await channel.get_partial_message(msg_id).fetch()
                                     if self.applied_config != self.config:
                                         await msg.edit(embeds=embeds, view=view)
