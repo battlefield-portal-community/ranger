@@ -37,14 +37,15 @@
                     "saveConfig": async function (jseditor, e) {
                         const errors = editor.validate()
                         if (!errors.length){
-                            const config = (new URL(document.location.href)).searchParams.get('config')
+                            const loc = new URL(document.location.href)
+                            const config = (loc).searchParams.get('config')
 
-                            const resp = await fetch(`http://localhost:5000/post?config=${config}`,{
+                            const resp = await fetch(`${loc.origin}/post?config=${config}`,{
                                 method: 'POST',
                                 headers: {
-                                  'Content-Type': 'application/json'
-                                  // 'Content-Type': 'application/x-www-form-urlencoded',
+                                    'Content-Type': 'application/json',
                                 },
+                                credentials: 'include',
                                 body: JSON.stringify(editor.getValue())
                             })
                             if ((await resp.json())['saved']){
