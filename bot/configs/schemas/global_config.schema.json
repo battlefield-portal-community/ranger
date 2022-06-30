@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/battlefield-portal-community/ranger/main/bot/configs/schemas/message.schema.json",
+  "title": "Global Settings",
+  "description": "Control Which modules are turned on from here",
+  "type": "object",
+  "properties": {
+    "blocks": {
+      "title": "All blocks",
+      "type": "array",
+      "format": "tabs-top",
+      "items": {
+        "headerTemplate": "{{self.name}}",
+        "properties": {
+          "name": {
+            "type": "string",
+            "options": {
+              "hidden": true
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "format": "checkbox",
+            "default": false
+          },
+          "button": {
+            "format": "button",
+            "title": "Settings",
+            "options": {
+              "button": {
+                "icon": "icon-arrow-down",
+                "action": "openSettings",
+                "validated": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
