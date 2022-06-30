@@ -60,7 +60,6 @@
                 "properties": {
                   "emoji": {
                     "type": "string",
-                    "pattern": "",
                     "title": "Emoji",
                     "description": "Emoji to be attached to the button"
                   },
