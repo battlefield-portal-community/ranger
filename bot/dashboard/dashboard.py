@@ -65,12 +65,12 @@ try:
             bot = Ranger(debug_guilds=[
                 int(os.getenv('GUILD_ID'))
             ])
-            ensure_defaults()  # blocking call
-            bot.load_custom_cogs()
 
 
         @app.on_event("startup")
         async def startup():
+            ensure_defaults()  # blocking call
+            await bot.load_custom_cogs()
             logger.debug("Starting Bot....")
             if os.getenv('DEBUG_SERVER', '').lower() != 'true':
                 asyncio.create_task(bot.start(os.getenv("DISCORD_TOKEN")))
