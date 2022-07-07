@@ -13,6 +13,7 @@ from ..bot import Ranger
 
 class Button(discord.ui.Button):
     def __init__(self,
+                 bot: Ranger,
                  label: str | None = None,
                  custom_id: str | None = None,
                  count: int | None = None,
@@ -23,6 +24,7 @@ class Button(discord.ui.Button):
                  ):
         self.true_label = label
         self.count = count
+        self.bot: Ranger = bot
         super().__init__(
             label=self.true_label + (f" ({self.count})" if self.count else ''),
             style=discord.ButtonStyle[style],
@@ -33,29 +35,45 @@ class Button(discord.ui.Button):
         self.role_id = int(role_id)
 
     async def callback(self, interaction: discord.Interaction):
-        if self.role_id:
-            role = interaction.guild.get_role(self.role_id)
-            if not role:
-                logger.debug(f"Role {self.role_id} not found in cache")
-                role_list = await interaction.guild.fetch_roles()
-                r = [r for r in role_list if r.id == self.role_id]
-                if len(r):
-                    role = r[0]
-                else:
-                    logger.debug(f"Role {self.role_id} not found in  guild {interaction.guild.id}")
+        if self.bot.config['cogs']['role_buttons']['enabled']:
+            if self.role_id:
+                role = interaction.guild.get_role(self.role_id)
+                if not role:
+                    logger.debug(f"Role {self.role_id} not found in cache")
+                    role_list = await interaction.guild.fetch_roles()
+                    r = [r for r in role_list if r.id == self.role_id]
+                    if len(r):
+                        role = r[0]
+                    else:
+                        logger.debug(f"Role {self.role_id} not found in  guild {interaction.guild.id}")
 
-            if role:
-                await interaction.user.add_roles(role)
-                if self.count is not None:
-                    mem = interaction.guild.get_role(self.role_id).members
-                    self.count = f"{len(mem)}"
-                    self.label = self.true_label + f" ({self.count})"
-                    await interaction.message.edit(embeds=interaction.message.embeds, view=self.view)
-                await interaction.response.send_message("Successful", ephemeral=True)
+                if role:
+                    await interaction.user.add_roles(role)
+                    if self.count is not None:
+                        mem = interaction.guild.get_role(self.role_id).members
+                        self.count = f"{len(mem)}"
+                        self.label = self.true_label + f" ({self.count})"
+                        await interaction.message.edit(embeds=interaction.message.embeds, view=self.view)
+                    await interaction.response.send_message(
+                        "Successful",
+                        ephemeral=True,
+                        delete_after=5
+                    )
+                else:
+                    await interaction.response.send_message(
+                        "❌ Failed",
+                        ephemeral=True,
+                        delete_after=10
+                    )
             else:
-                await interaction.response.send_message("❌ Failed", ephemeral=True)
+                pass
         else:
-            pass
+            await interaction.response.send_message(
+                "🤔 Role Buttons are disabled for now.. pls contact admins 🙏",
+                ephemeral=True,
+                delete_after=5
+            )
+            logger.debug(f"role_buttons disabled globally.. skipping giving roles... for user {interaction.user}")
 
 
 class RoleButtonsManger(CogBase):
@@ -107,6 +125,7 @@ class RoleButtonsManger(CogBase):
                                             if role := channel.guild.get_role(role_id):
                                                 view.add_item(
                                                     Button(
+                                                        bot=self.bot,
                                                         **button_kwargs,
                                                         custom_id=f"{role_id}",
                                                         count=len(role.members) if count else None,
