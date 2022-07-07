@@ -84,55 +84,58 @@ class RoleButtonsManger(CogBase):
             await self.make_message()
 
     async def make_message(self):
-        if self.config:
-            for channel_ in self.config['channels']:
+        if self.bot.config['cogs']['role_buttons']['enabled']:
+            if self.config:
+                for channel_ in self.config['channels']:
 
-                if channel := self.bot.get_channel(int(channel_['id'])):
-                    channel_['name'] = channel.name
-                    for group in channel_['groups']:
-                        if not group['disabled']:
-                            message = group['message']
-                            embeds = []
-                            view = discord.ui.View(timeout=None)
-                            for field, values in message.items():
-                                if field == "embed":
-                                    kwargs = values.copy()
-                                    kwargs['color'] = int(values['color'][1:], 16)
-                                    embeds.append(discord.Embed(**kwargs))
-                                elif field == "buttons":
-                                    count = values['count']
-                                    for button_kwargs in values['list']:
-                                        role_id = int(button_kwargs['role_id'])
-                                        if role := channel.guild.get_role(role_id):
-                                            view.add_item(
-                                                Button(
-                                                    **button_kwargs,
-                                                    custom_id=f"{role_id}",
-                                                    count=len(role.members) if count else None,
+                    if channel := self.bot.get_channel(int(channel_['id'])):
+                        channel_['name'] = channel.name
+                        for group in channel_['groups']:
+                            if not group['disabled']:
+                                message = group['message']
+                                embeds = []
+                                view = discord.ui.View(timeout=None)
+                                for field, values in message.items():
+                                    if field == "embed":
+                                        kwargs = values.copy()
+                                        kwargs['color'] = int(values['color'][1:], 16)
+                                        embeds.append(discord.Embed(**kwargs))
+                                    elif field == "buttons":
+                                        count = values['count']
+                                        for button_kwargs in values['list']:
+                                            role_id = int(button_kwargs['role_id'])
+                                            if role := channel.guild.get_role(role_id):
+                                                view.add_item(
+                                                    Button(
+                                                        **button_kwargs,
+                                                        custom_id=f"{role_id}",
+                                                        count=len(role.members) if count else None,
+                                                    )
                                                 )
-                                            )
-                                        else:
-                                            logger.debug(f"Invalid Role {role_id} passed in json")
-                            if "id" in message.keys():
-                                try:
-                                    msg_id = int(message['id'])
-                                    msg = await channel.get_partial_message(msg_id).fetch()
-                                    if self.applied_config != self.config:
-                                        await msg.edit(embeds=embeds, view=view)
-                                except discord.NotFound or discord.Forbidden:
+                                            else:
+                                                logger.debug(f"Invalid Role {role_id} passed in json")
+                                if "id" in message.keys():
+                                    try:
+                                        msg_id = int(message['id'])
+                                        msg = await channel.get_partial_message(msg_id).fetch()
+                                        if self.applied_config != self.config:
+                                            await msg.edit(embeds=embeds, view=view)
+                                    except discord.NotFound or discord.Forbidden:
+                                        msg = await channel.send(embeds=embeds, view=view)
+                                        msg_id = msg.id
+                                else:
                                     msg = await channel.send(embeds=embeds, view=view)
                                     msg_id = msg.id
-                            else:
-                                msg = await channel.send(embeds=embeds, view=view)
-                                msg_id = msg.id
-                            if not self.bot.persistent_views_added:
-                                self.bot.add_view(view=view, message_id=msg_id)
-                            message['id'] = str(msg_id)
+                                if not self.bot.persistent_views_added:
+                                    self.bot.add_view(view=view, message_id=msg_id)
+                                message['id'] = str(msg_id)
 
-            for file_path in [self.config_file_path, self.applied_config_path]:
-                with open(file_path, 'w') as file:
-                    json.dump(self.config, file, sort_keys=True, indent=2)
-            self.applied_config = self.config.copy()
+                for file_path in [self.config_file_path, self.applied_config_path]:
+                    with open(file_path, 'w') as file:
+                        json.dump(self.config, file, sort_keys=True, indent=2)
+                self.applied_config = self.config.copy()
+        else:
+            logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
 
     @tasks.loop(seconds=10)
     async def watch_config(self):
