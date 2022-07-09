@@ -44,18 +44,22 @@ class EmbedMessageManager(CogBase):
                         channel_['name'] = channel.name
                         embed: dict
                         for message, a_message in zip(channel_['messages'], a_channel['messages']):
-                            if any(map(len, [message['content'], message['embeds']])) and message != a_message:
+                            try:
+                                msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
+                                    'id'] else None
+                            except discord.NotFound or discord.Forbidden:
+                                msg = None
+
+                            if any(map(len, [message['content'], message['embeds']])) and (
+                                    message != a_message or msg is None):
+
                                 embeds = []
                                 for embed in message['embeds']:
                                     kwargs = embed.copy()
                                     logger.debug(f"making embeds for{kwargs.pop('name')}")
                                     kwargs['color'] = int(embed['color'][1:], 16)
                                     embeds.append(discord.Embed(**kwargs))
-                                try:
-                                    msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
-                                        'id'] else None
-                                except discord.NotFound or discord.Forbidden:
-                                    msg = None
+
                                 if msg:
                                     await msg.edit(
                                         content=message['content'] if message['content'] else None,
