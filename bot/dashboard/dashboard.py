@@ -21,8 +21,13 @@ def ensure_defaults():
     logger.debug("Ensuring default config files")
     logger.debug(configs_base)
     for file in (configs_base / "defaults").glob("*.json"):
+        write_defaults = False
         if not (config_file_path := configs_path / file.name).exists():
             config_file_path.touch()
+            write_defaults = True
+        elif config_file_path.stat().st_size == 0:
+            write_defaults = True
+        if write_defaults:
             with open(file) as default, open(config_file_path, 'w') as config:
                 config.write(default.read())
 
