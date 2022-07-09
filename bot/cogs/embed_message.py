@@ -39,21 +39,37 @@ class EmbedMessageManager(CogBase):
     async def make_message(self):
         if self.bot.config['cogs']['embed_message']['enabled']:
             if self.config:
-                for channel_ in self.config['channels']:
+                for channel_, a_channel in zip(self.config['channels'], self.applied_config['channels']):
                     if channel := self.bot.get_channel(int(channel_['id'])):
                         channel_['name'] = channel.name
-                        embeds = []
                         embed: dict
-                        for embed in channel_['embeds']:
-                            kwargs = embed.copy()
-                            kwargs.pop('name')
-                            kwargs['color'] = int(embed['color'][1:], 16)
-                            embeds.append(discord.Embed(**kwargs))
-                        if embeds:
-                            await channel.send(embeds=embeds)
+                        for message, a_message in zip(channel_['messages'], a_channel['messages']):
+                            if any(map(len, [message['content'], message['embeds']])) and message != a_message:
+                                embeds = []
+                                for embed in message['embeds']:
+                                    kwargs = embed.copy()
+                                    logger.debug(f"making embeds for{kwargs.pop('name')}")
+                                    kwargs['color'] = int(embed['color'][1:], 16)
+                                    embeds.append(discord.Embed(**kwargs))
+                                try:
+                                    msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
+                                        'id'] else None
+                                except discord.NotFound or discord.Forbidden:
+                                    msg = None
+                                if msg:
+                                    await msg.edit(
+                                        content=message['content'] if message['content'] else None,
+                                        embeds=embeds
+                                    )
+                                else:
+                                    msg = await channel.send(
+                                        content=message['content'] if message['content'] else None,
+                                        embeds=embeds
+                                    )
+                                message['id'] = str(msg.id)  # so that we can check regex patten on it
 
                 for file_path in [self.config_file_path, self.applied_config_path]:
-                    with open(file_path, 'w') as file:
+                    with file_path.open('w') as file:
                         json.dump(self.config, file, sort_keys=True, indent=2)
                 self.applied_config = self.config.copy()
 
