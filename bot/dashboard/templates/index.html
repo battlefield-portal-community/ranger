@@ -36,6 +36,29 @@
                     "openSettings": function (jseditor, e){
                         let loc = document.location.href;
                         document.location.href = `${loc}configs?config=${e.target.offsetParent.firstElementChild.textContent.trim()}`
+                    },
+                    "updateGlobalConfig": async function (jseditor, e){
+                        const errors = editor.validate()
+                        if (!errors.length){
+                            const loc = new URL(document.location.href)
+                            const resp = await fetch(`${loc.origin}/post?config=global_config`,{
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                credentials: 'include',
+                                body: JSON.stringify(editor.getValue())
+                            })
+                            if ((await resp.json())['saved']){
+                                window.alert("Config Saved....")
+                                document.location.reload()
+                            } else {
+                                window.alert("Config Not Saved....")
+                            }
+                        } else {
+                            window.alert("Remove all errors from the config,\nsee console log for all errors")
+                            console.log(errors)
+                        }
                     }
                 }
             }
