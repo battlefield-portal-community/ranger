@@ -1,4 +1,6 @@
 import json
+from itertools import zip_longest
+
 import aiofiles
 
 import discord
@@ -39,11 +41,12 @@ class EmbedMessageManager(CogBase):
     async def make_message(self):
         if self.bot.config['cogs']['embed_message']['enabled']:
             if self.config:
-                for channel_, a_channel in zip(self.config['channels'], self.applied_config['channels']):
+                for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config['channels']):
                     if channel := self.bot.get_channel(int(channel_['id'])):
                         channel_['name'] = channel.name
                         embed: dict
-                        for message, a_message in zip(channel_['messages'], a_channel['messages']):
+                        for message, a_message in zip_longest(
+                                channel_['messages'], a_channel['messages'] if a_channel else []):
                             try:
                                 msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
                                     'id'] else None
@@ -71,6 +74,8 @@ class EmbedMessageManager(CogBase):
                                         embeds=embeds
                                     )
                                 message['id'] = str(msg.id)  # so that we can check regex patten on it
+                    else:
+                        logger.debug(f"Invalid channel id {channel_['id']} or the channel not in cache")
 
                 for file_path in [self.config_file_path, self.applied_config_path]:
                     with file_path.open('w') as file:
