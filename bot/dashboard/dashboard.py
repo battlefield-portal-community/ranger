@@ -4,6 +4,7 @@ import asyncio
 import secrets
 from pathlib import Path
 
+import dictdiffer
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path, configs_base
 
@@ -27,6 +28,20 @@ def ensure_defaults():
             write_defaults = True
         elif config_file_path.stat().st_size == 0:
             write_defaults = True
+        elif file.stem == "global_config":
+            with file.open('r') as FILE:
+                default_config = json.load(FILE)
+            with config_file_path.open('r') as FILE:
+                curr_config = json.load(FILE)
+            default_config: dict
+            curr_config: dict
+            diff = list(dictdiffer.diff(curr_config, default_config))
+            diff = [i for i in diff if i[0] != "change"]
+            logger.debug(diff)
+            dictdiffer.patch(diff, curr_config, in_place=True)
+            with config_file_path.open('w') as FILE:
+                json.dump(curr_config, FILE, indent=2)
+
         if write_defaults:
             with open(file) as default, open(config_file_path, 'w') as config:
                 config.write(default.read())
