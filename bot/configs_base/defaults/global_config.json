@@ -1,8 +1,13 @@
 {
-  "blocks": [
-    {
-      "name": "role_buttons",
-      "enabled": true
+  "cogs": {
+    "role_buttons": {
+      "enabled": true,
+      "name": "role_buttons"
+    },
+    "embed_message": {
+      "enabled": true,
+      "name": "embed_message"
     }
-  ]
+
+  }
 }
