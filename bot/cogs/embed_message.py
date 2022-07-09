@@ -39,53 +39,67 @@ class EmbedMessageManager(CogBase):
             await self.make_message()
 
     async def make_message(self):
-        if self.bot.config['cogs']['embed_message']['enabled']:
-            if self.config:
-                for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config.get("channels", [])):
-                    if channel := self.bot.get_channel(int(channel_['id'])):
-                        channel_['name'] = channel.name
-                        embed: dict
-                        for message, a_message in zip_longest(
-                                channel_['messages'], a_channel['messages'] if a_channel else []):
-                            try:
-                                msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
-                                    'id'] else None
-                            except discord.NotFound or discord.Forbidden:
-                                msg = None
+        try:
+            if self.bot.config['cogs']['embed_message']['enabled']:
+                if self.config:
+                    for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config.get("channels", [])):
+                        if channel := self.bot.get_channel(int(channel_['id'])):
+                            channel_['name'] = channel.name
+                            embed: dict
+                            for message, a_message in zip_longest(
+                                    channel_['messages'], a_channel['messages'] if a_channel else []):
+                                try:
+                                    msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
+                                        'id'] else None
+                                except discord.NotFound or discord.Forbidden:
+                                    msg = None
 
-                            if any(map(len, [message['content'], message['embeds']])) and (
-                                    message != a_message or msg is None):
+                                if any(map(len, [message['content'], message['embeds']])) and (
+                                        message != a_message or msg is None):
 
-                                embeds = []
-                                for embed in message['embeds']:
-                                    kwargs = embed.copy()
-                                    logger.debug(f"making embeds for{kwargs.pop('name')}")
-                                    kwargs['color'] = int(embed['color'][1:], 16)
-                                    embeds.append(discord.Embed(**kwargs))
+                                    embeds = []
+                                    for embed in message['embeds']:
+                                        if len(embed):
+                                            kwargs = dict()
+                                            for key, value in embed.items():
+                                                if not len(value):
+                                                    if key == "description":
+                                                        kwargs[key] = "\u200B"
+                                                    else:
+                                                        kwargs[key] = discord.Embed.Empty
+                                                else:
+                                                    kwargs[key] = value
 
-                                if msg:
-                                    await msg.edit(
-                                        content=message['content'] if message['content'] else None,
-                                        embeds=embeds
-                                    )
-                                else:
-                                    msg = await channel.send(
-                                        content=message['content'] if message['content'] else None,
-                                        embeds=embeds
-                                    )
-                                message['id'] = str(msg.id)  # so that we can check regex patten on it
-                    else:
-                        logger.debug(f"Invalid channel id {channel_['id']} or the channel not in cache")
+                                            logger.debug(kwargs)
+                                            logger.debug(f"making embeds for{kwargs.pop('name')}")
+                                            kwargs['color'] = int(embed['color'][1:], 16)
+                                            embeds.append(discord.Embed(**kwargs))
 
-                for file_path in [self.config_file_path, self.applied_config_path]:
-                    with file_path.open('w') as file:
-                        json.dump(self.config, file, sort_keys=True, indent=2)
-                self.applied_config = self.config.copy()
+                                    if msg:
+                                        await msg.edit(
+                                            content=message['content'] if message['content'] else None,
+                                            embeds=embeds
+                                        )
+                                    else:
+                                        msg = await channel.send(
+                                            content=message['content'] if message['content'] else None,
+                                            embeds=embeds
+                                        )
+                                    message['id'] = str(msg.id)  # so that we can check regex patten on it
+                        else:
+                            logger.debug(f"Invalid channel id {channel_['id']} or the channel not in cache")
 
+                    for file_path in [self.config_file_path, self.applied_config_path]:
+                        with file_path.open('w') as file:
+                            json.dump(self.config, file, sort_keys=True, indent=2)
+                    self.applied_config = self.config.copy()
+
+                else:
+                    pass
             else:
-                pass
-        else:
-            logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
+                logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
+        except discord.HTTPException as e:
+            logger.error(e)
 
     @tasks.loop(seconds=10)
     async def watch_config(self):
