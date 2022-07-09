@@ -41,7 +41,7 @@ class EmbedMessageManager(CogBase):
     async def make_message(self):
         if self.bot.config['cogs']['embed_message']['enabled']:
             if self.config:
-                for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config['channels']):
+                for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config.get("channels", [])):
                     if channel := self.bot.get_channel(int(channel_['id'])):
                         channel_['name'] = channel.name
                         embed: dict

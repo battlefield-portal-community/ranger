@@ -3,6 +3,7 @@ from random import choice
 
 project_base_path = pathlib.Path(__file__).parents[1]
 configs_path = project_base_path / "configs"
+configs_base = project_base_path / "configs_base"
 
 def random_emoji() -> str:
     return choice(

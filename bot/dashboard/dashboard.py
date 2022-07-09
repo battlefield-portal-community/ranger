@@ -5,7 +5,7 @@ import secrets
 from pathlib import Path
 
 from loguru import logger
-from ..utils.helper import project_base_path, configs_path
+from ..utils.helper import project_base_path, configs_path, configs_base
 
 
 # try:
@@ -19,8 +19,8 @@ from ..utils.helper import project_base_path, configs_path
 
 def ensure_defaults():
     logger.debug("Ensuring default config files")
-    logger.debug(configs_path)
-    for file in (configs_path / "defaults").glob("*.json"):
+    logger.debug(configs_base)
+    for file in (configs_base / "defaults").glob("*.json"):
         if not (config_file_path := configs_path / file.name).exists():
             config_file_path.touch()
             with open(file) as default, open(config_file_path, 'w') as config:
@@ -185,10 +185,10 @@ try:
 
 
         async def get_files(config_name: str) -> tuple[Path, Path] | bool:
-            schema_files = [config_file for config_file in list((configs_path / "schemas" / "ranger").glob("*.schema.json"))]
+            schema_files = [config_file for config_file in list((configs_base / "schemas" / "ranger").glob("*.schema.json"))]
             if f"{config_name}.schema" in [file.stem for file in schema_files]:
                 config_file = configs_path / f"{config_name}.json"
-                confile_file_default = configs_path / "defaults" / f"{config_name}.json"
+                confile_file_default = configs_base / "defaults" / f"{config_name}.json"
                 if config_name != "definitions" and not config_file.exists():
                     config_file.touch()
                     default = dict()
@@ -198,7 +198,7 @@ try:
 
                     with open(config_file, 'w') as file:
                         json.dump(default, file)
-                return config_file, configs_path / "schemas" / "ranger" / f"{config_name}.schema.json"
+                return config_file, configs_base / "schemas" / "ranger" / f"{config_name}.schema.json"
             else:
                 return False
 
