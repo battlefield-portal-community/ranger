@@ -14,6 +14,9 @@ from .cogs.cog_base import CogBase
 class Ranger(Bot):
     def __init__(self, **options):
         intents = discord.Intents.default()
+        intents.guilds = True
+        intents.members = True
+        intents.presences = True
         super().__init__(intents=intents, **options)
         self.persistent_views_added = False
         self.config: ConfigDict = dict()

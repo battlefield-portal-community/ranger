@@ -5,6 +5,7 @@ import secrets
 from pathlib import Path
 
 import dictdiffer
+import discord
 from loguru import logger
 from ..utils.helper import project_base_path, configs_path, configs_base
 
@@ -66,6 +67,7 @@ try:
         origins = [
             "http://vmi656705.contaboserver.net:5000",
             "https://vmi656705.contaboserver.net:5000",
+            "https://gorgeous-ghouls.github.io/",
             re.compile("http://0.0.0.0:*"),
             re.compile("http://localhost:*")
         ]
@@ -100,7 +102,7 @@ try:
 
         @app.middleware('http')
         async def check_for_login(request: Request, call_next):
-            if not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
+            if not os.getenv('DEBUG_SERVER', False) and not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
                 logger.debug("Not logged in")
                 return RedirectResponse("/login")
             else:
@@ -159,6 +161,32 @@ try:
                     'start_val': saved_config
                 }
             )
+
+
+        # @bot.event
+        # async def on_presence_update(before: discord.Member, after: discord.Member):
+        #     logger.debug((before.status, after.status))
+
+
+        @app.get('/user/')
+        async def get_user_info(id: int, guild_id: int):
+            guild = bot.get_guild(guild_id)
+            logger.debug(guild.name)
+            user = None
+            if guild:
+                user = guild.get_member(id)
+                # user = guild.get_member(id)
+            if user:
+                return {
+                    "status": True,
+                    "schemaVersion": 1,
+                    "label": "",
+                    "message": user.status[0],
+                    "color": "black",
+                    "style": "for-the-badge"
+                }
+            else:
+                return {'status': False}
 
 
         async def return_file(config_name: str, config: bool = False, schema: bool = False) -> dict:
