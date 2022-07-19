@@ -107,6 +107,8 @@ class EmbedMessageManager(CogBase):
                 logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
         except discord.HTTPException as e:
             logger.error(e)
+        except TypeError as e:
+            logger.error(e)
 
     @tasks.loop(seconds=10)
     async def watch_config(self):
