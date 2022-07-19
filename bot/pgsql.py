@@ -17,17 +17,15 @@ class ConnectionWrapper:
     try:
 
         logger.debug("Trying to connect to db")
-        if os.getenv('DISABLE_PG', '').lower() != 'true':
+        if os.getenv("DISABLE_PG", "").lower() != "true":
             con = psycopg2.connect(
                 database=os.getenv("POSTGRES_DB"),
                 user="postgres",
                 password="postgres",
                 host=os.getenv("PG_HOST", "db"),
-                port="5432"
+                port="5432",
             )
-            logger.debug(
-                f"Connected to db {con.info.dbname} with user {con.info.user}"
-            )
+            logger.debug(f"Connected to db {con.info.dbname} with user {con.info.user}")
         else:
             logger.debug("PG database disabled, skipping connection.....")
 
@@ -39,7 +37,9 @@ class ConnectionWrapper:
         logger.critical("Unable to Import psycopg2")
         raise
 
-    def __execute_query(self, query: str | sql.Composable, commit: bool = True) -> cursor:
+    def __execute_query(
+        self, query: str | sql.Composable, commit: bool = True
+    ) -> cursor:
         cur = self.con.cursor()
         cur.execute(query)
         if commit:
@@ -60,10 +60,10 @@ class ConnectionWrapper:
         pass
 
     def get(
-            self,
-            columns: tuple[str, ...],
-            conditions: ValidColumns | None = None,
-            table=None,
+        self,
+        columns: tuple[str, ...],
+        conditions: ValidColumns | None = None,
+        table=None,
     ) -> cursor:
         """
         A generic get function to get values from db
@@ -74,61 +74,68 @@ class ConnectionWrapper:
         :return: psycopg2.Cursor
         """
         format_kwargs = {
-            'columns': sql.SQL(',').join([sql.Identifier(i) for i in columns])
-            if columns[0] != '*' else sql.SQL("*"),
-
-            'table': sql.Identifier(table),
+            "columns": sql.SQL(",").join([sql.Identifier(i) for i in columns])
+            if columns[0] != "*"
+            else sql.SQL("*"),
+            "table": sql.Identifier(table),
         }
         if conditions:
             format_kwargs.update(
                 {
-                    'conditions': sql.SQL(',').join(
+                    "conditions": sql.SQL(",").join(
                         [
-                            sql.SQL('=').join((sql.Identifier(key), sql.Literal(value)))
+                            sql.SQL("=").join((sql.Identifier(key), sql.Literal(value)))
                             for key, value in conditions.items()
                         ]
                     )
                 }
             )
         query = sql.SQL(
-            "SELECT {columns} FROM {table} " +
-            ("where {conditions}" if conditions else '')
+            "SELECT {columns} FROM {table} "
+            + ("where {conditions}" if conditions else "")
         ).format(**format_kwargs)
 
         return self.__execute_query(query, commit=False)
 
-    def update(self, table: str, where: tuple[str, Any], returning: str | None = None, **kwargs) -> cursor:
+    def update(
+        self, table: str, where: tuple[str, Any], returning: str | None = None, **kwargs
+    ) -> cursor:
         update_fields = []
         for column, value in kwargs.items():
-            update_fields.append(sql.SQL("=").join(
-                [sql.Identifier(str(column)), sql.Literal(value)]
-            ))
+            update_fields.append(
+                sql.SQL("=").join([sql.Identifier(str(column)), sql.Literal(value)])
+            )
 
         format_kwargs = {
-            'table': sql.Identifier(table),
-            'update_fields': sql.SQL(',').join(update_fields),
-            'condition': sql.SQL('=').join([sql.Identifier(where[0]), sql.Literal(where[1])]),
+            "table": sql.Identifier(table),
+            "update_fields": sql.SQL(",").join(update_fields),
+            "condition": sql.SQL("=").join(
+                [sql.Identifier(where[0]), sql.Literal(where[1])]
+            ),
         }
         if returning:
-            format_kwargs.update({'returning': sql.Identifier(returning)})
+            format_kwargs.update({"returning": sql.Identifier(returning)})
 
         query = sql.SQL(
             """UPDATE {table} SET {update_fields} where {condition} """
-            + ("RETURNING (SELECT {returning} FROM {table} WHERE {condition})" if returning else '')
+            + (
+                "RETURNING (SELECT {returning} FROM {table} WHERE {condition})"
+                if returning
+                else ""
+            )
         ).format(**format_kwargs)
 
         return self.__execute_query(query)
 
-    def exists(self, where: tuple[str, Any], table: str = 'bot_data') -> bool:
+    def exists(self, where: tuple[str, Any], table: str = "bot_data") -> bool:
         # SELECT exists (SELECT 1 FROM table WHERE column = <value> LIMIT 1);
         query = sql.SQL(
             "SELECT exists (SELECT 1 FROM {table} WHERE {condition} LIMIT 1)"
         ).format(
             table=sql.Identifier(table),
-            condition=sql.SQL('=').join([
-                sql.Identifier(where[0]),
-                sql.Literal(where[1])
-            ])
+            condition=sql.SQL("=").join(
+                [sql.Identifier(where[0]), sql.Literal(where[1])]
+            ),
         )
         with self.__execute_query(query, commit=False) as curr:
             return curr.fetchone()[0]
@@ -140,10 +147,11 @@ class ConnectionWrapper:
 
         query = sql.SQL("DELETE from {table} where {conditions}").format(
             table=sql.Identifier(table),
-            conditions=sql.SQL(',').join(
+            conditions=sql.SQL(",").join(
                 [
-                    sql.SQL('=').join((sql.Identifier(key), sql.Literal(value)))
+                    sql.SQL("=").join((sql.Identifier(key), sql.Literal(value)))
                     for key, value in conditions.items()
-                ])
+                ]
+            ),
         )
         return self.__execute_query(query)

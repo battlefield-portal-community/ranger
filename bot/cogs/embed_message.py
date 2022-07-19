@@ -17,7 +17,11 @@ class EmbedMessageManager(CogBase):
     def __init__(self, bot_: Ranger):
         self.bot = bot_
         self.config_file_path = project_base_path / "configs/embed_message.json"
-        self.applied_config_path = self.config_file_path.parent / "applied_configs" / self.config_file_path.name
+        self.applied_config_path = (
+            self.config_file_path.parent
+            / "applied_configs"
+            / self.config_file_path.name
+        )
 
         self.applied_config_path.touch(exist_ok=True)
         with open(self.applied_config_path) as file:
@@ -40,31 +44,42 @@ class EmbedMessageManager(CogBase):
 
     async def make_message(self):
         try:
-            if self.bot.config['cogs']['embed_message']['enabled']:
+            if self.bot.config["cogs"]["embed_message"]["enabled"]:
                 if self.config:
-                    for channel_, a_channel in zip_longest(self.config['channels'],
-                                                           self.applied_config.get("channels", [])):
+                    for channel_, a_channel in zip_longest(
+                        self.config["channels"], self.applied_config.get("channels", [])
+                    ):
                         if channel_:
-                            if channel := self.bot.get_channel(int(channel_['id'])):
-                                channel_['name'] = channel.name
+                            if channel := self.bot.get_channel(int(channel_["id"])):
+                                channel_["name"] = channel.name
                                 embed: dict
                                 for message, a_message in zip_longest(
-                                        channel_['messages'], a_channel['messages'] if a_channel else []):
+                                    channel_["messages"],
+                                    a_channel["messages"] if a_channel else [],
+                                ):
                                     try:
-                                        partial_msg = channel.get_partial_message(int(message['id']))
+                                        partial_msg = channel.get_partial_message(
+                                            int(message["id"])
+                                        )
                                         if partial_msg:
-                                            msg = await partial_msg.fetch() if message[
-                                                'id'] else None
+                                            msg = (
+                                                await partial_msg.fetch()
+                                                if message["id"]
+                                                else None
+                                            )
                                         else:
                                             msg = None
                                     except discord.NotFound or discord.Forbidden:
                                         msg = None
 
-                                    if any(map(len, [message['content'], message['embeds']])) and (
-                                            message != a_message or msg is None):
+                                    if any(
+                                        map(
+                                            len, [message["content"], message["embeds"]]
+                                        )
+                                    ) and (message != a_message or msg is None):
 
                                         embeds = []
-                                        for embed in message['embeds']:
+                                        for embed in message["embeds"]:
                                             if len(embed):
                                                 kwargs = dict()
                                                 for key, value in embed.items():
@@ -72,39 +87,55 @@ class EmbedMessageManager(CogBase):
                                                         if key == "description":
                                                             kwargs[key] = "\u200B"
                                                         else:
-                                                            kwargs[key] = discord.Embed.Empty
+                                                            kwargs[
+                                                                key
+                                                            ] = discord.Embed.Empty
                                                     else:
                                                         kwargs[key] = value
 
                                                 logger.debug(kwargs)
-                                                logger.debug(f"making embeds for{kwargs.pop('name')}")
-                                                kwargs['color'] = int(embed['color'][1:], 16)
+                                                logger.debug(
+                                                    f"making embeds for{kwargs.pop('name')}"
+                                                )
+                                                kwargs["color"] = int(
+                                                    embed["color"][1:], 16
+                                                )
                                                 embeds.append(discord.Embed(**kwargs))
 
                                         if msg:
                                             await msg.edit(
-                                                content=message['content'] if message['content'] else None,
-                                                embeds=embeds
+                                                content=message["content"]
+                                                if message["content"]
+                                                else None,
+                                                embeds=embeds,
                                             )
                                         else:
                                             msg = await channel.send(
-                                                content=message['content'] if message['content'] else None,
-                                                embeds=embeds
+                                                content=message["content"]
+                                                if message["content"]
+                                                else None,
+                                                embeds=embeds,
                                             )
-                                        message['id'] = str(msg.id)  # so that we can check regex patten on it
+                                        message["id"] = str(
+                                            msg.id
+                                        )  # so that we can check regex patten on it
                             else:
-                                logger.debug(f"Invalid channel id {channel_['id']} or the channel not in cache")
+                                logger.debug(
+                                    f"Invalid channel id {channel_['id']} or the channel not in cache"
+                                )
                         else:
                             logger.debug(f"No channel in config")
                     for file_path in [self.config_file_path, self.applied_config_path]:
-                        with file_path.open('w') as file:
+                        with file_path.open("w") as file:
                             json.dump(self.config, file, sort_keys=True, indent=2)
                     self.applied_config = self.config.copy()
 
                 else:
                     pass
             else:
-                logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
+                logger.debug(
+                    f"{self.qualified_name} is disabled in global config....skipping update.."
+                )
         except discord.HTTPException as e:
             logger.error(e)
         except TypeError as e:

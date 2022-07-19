@@ -12,30 +12,31 @@ from ..bot import Ranger
 
 
 class Button(discord.ui.Button):
-    def __init__(self,
-                 bot: Ranger,
-                 label: str | None = None,
-                 custom_id: str | None = None,
-                 count: int | None = None,
-                 emoji: str | None = None,
-                 style: str | None = None,
-                 role_id: int | None = None,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        bot: Ranger,
+        label: str | None = None,
+        custom_id: str | None = None,
+        count: int | None = None,
+        emoji: str | None = None,
+        style: str | None = None,
+        role_id: int | None = None,
+        **kwargs,
+    ):
         self.true_label = label
         self.count = count
         self.bot: Ranger = bot
         super().__init__(
-            label=self.true_label + (f" ({self.count})" if self.count else ''),
+            label=self.true_label + (f" ({self.count})" if self.count else ""),
             style=discord.ButtonStyle[style],
             emoji=emoji,
             custom_id=custom_id,
-            row=kwargs.get('row', None)
+            row=kwargs.get("row", None),
         )
         self.role_id = int(role_id)
 
     async def callback(self, interaction: discord.Interaction):
-        if self.bot.config['cogs']['role_buttons']['enabled']:
+        if self.bot.config["cogs"]["role_buttons"]["enabled"]:
             if self.role_id:
                 role = interaction.guild.get_role(self.role_id)
                 if not role:
@@ -45,7 +46,9 @@ class Button(discord.ui.Button):
                     if len(r):
                         role = r[0]
                     else:
-                        logger.debug(f"Role {self.role_id} not found in  guild {interaction.guild.id}")
+                        logger.debug(
+                            f"Role {self.role_id} not found in  guild {interaction.guild.id}"
+                        )
 
                 if role:
                     await interaction.user.add_roles(role)
@@ -53,17 +56,15 @@ class Button(discord.ui.Button):
                         mem = interaction.guild.get_role(self.role_id).members
                         self.count = f"{len(mem)}"
                         self.label = self.true_label + f" ({self.count})"
-                        await interaction.message.edit(embeds=interaction.message.embeds, view=self.view)
+                        await interaction.message.edit(
+                            embeds=interaction.message.embeds, view=self.view
+                        )
                     await interaction.response.send_message(
-                        "Successful",
-                        ephemeral=True,
-                        delete_after=5
+                        "Successful", ephemeral=True, delete_after=5
                     )
                 else:
                     await interaction.response.send_message(
-                        "❌ Failed",
-                        ephemeral=True,
-                        delete_after=10
+                        "❌ Failed", ephemeral=True, delete_after=10
                     )
             else:
                 pass
@@ -71,16 +72,22 @@ class Button(discord.ui.Button):
             await interaction.response.send_message(
                 "🤔 Role Buttons are disabled for now.. pls contact admins 🙏",
                 ephemeral=True,
-                delete_after=5
+                delete_after=5,
             )
-            logger.debug(f"role_buttons disabled globally.. skipping giving roles... for user {interaction.user}")
+            logger.debug(
+                f"role_buttons disabled globally.. skipping giving roles... for user {interaction.user}"
+            )
 
 
 class RoleButtonsManger(CogBase):
     def __init__(self, bot_: Ranger):
         self.bot = bot_
         self.config_file_path = project_base_path / "configs/role_buttons.json"
-        self.applied_config_path = self.config_file_path.parent / "applied_configs" / self.config_file_path.name
+        self.applied_config_path = (
+            self.config_file_path.parent
+            / "applied_configs"
+            / self.config_file_path.name
+        )
 
         self.applied_config_path.touch(exist_ok=True)
         with open(self.applied_config_path) as file:
@@ -102,59 +109,69 @@ class RoleButtonsManger(CogBase):
             await self.make_message()
 
     async def make_message(self):
-        if self.bot.config['cogs']['role_buttons']['enabled']:
+        if self.bot.config["cogs"]["role_buttons"]["enabled"]:
             if self.config:
-                for channel_ in self.config['channels']:
+                for channel_ in self.config["channels"]:
 
-                    if channel := self.bot.get_channel(int(channel_['id'])):
-                        channel_['name'] = channel.name
-                        for group in channel_['groups']:
-                            if not group['disabled']:
-                                message = group['message']
+                    if channel := self.bot.get_channel(int(channel_["id"])):
+                        channel_["name"] = channel.name
+                        for group in channel_["groups"]:
+                            if not group["disabled"]:
+                                message = group["message"]
                                 embeds = []
                                 view = discord.ui.View(timeout=None)
                                 for field, values in message.items():
                                     if field == "embed":
                                         kwargs = values.copy()
-                                        kwargs['color'] = int(values['color'][1:], 16)
+                                        kwargs["color"] = int(values["color"][1:], 16)
                                         embeds.append(discord.Embed(**kwargs))
                                     elif field == "buttons":
-                                        count = values['count']
-                                        for button_kwargs in values['list']:
-                                            role_id = int(button_kwargs['role_id'])
+                                        count = values["count"]
+                                        for button_kwargs in values["list"]:
+                                            role_id = int(button_kwargs["role_id"])
                                             if role := channel.guild.get_role(role_id):
                                                 view.add_item(
                                                     Button(
                                                         bot=self.bot,
                                                         **button_kwargs,
                                                         custom_id=f"{role_id}",
-                                                        count=len(role.members) if count else None,
+                                                        count=len(role.members)
+                                                        if count
+                                                        else None,
                                                     )
                                                 )
                                             else:
-                                                logger.debug(f"Invalid Role {role_id} passed in json")
+                                                logger.debug(
+                                                    f"Invalid Role {role_id} passed in json"
+                                                )
                                 if "id" in message.keys():
                                     try:
-                                        msg_id = int(message['id'])
-                                        msg = await channel.get_partial_message(msg_id).fetch()
+                                        msg_id = int(message["id"])
+                                        msg = await channel.get_partial_message(
+                                            msg_id
+                                        ).fetch()
                                         if self.applied_config != self.config:
                                             await msg.edit(embeds=embeds, view=view)
                                     except discord.NotFound or discord.Forbidden:
-                                        msg = await channel.send(embeds=embeds, view=view)
+                                        msg = await channel.send(
+                                            embeds=embeds, view=view
+                                        )
                                         msg_id = msg.id
                                 else:
                                     msg = await channel.send(embeds=embeds, view=view)
                                     msg_id = msg.id
                                 if not self.bot.persistent_views_added:
                                     self.bot.add_view(view=view, message_id=msg_id)
-                                message['id'] = str(msg_id)
+                                message["id"] = str(msg_id)
 
                 for file_path in [self.config_file_path, self.applied_config_path]:
-                    with open(file_path, 'w') as file:
+                    with open(file_path, "w") as file:
                         json.dump(self.config, file, sort_keys=True, indent=2)
                 self.applied_config = self.config.copy()
         else:
-            logger.debug(f"{self.qualified_name} is disabled in global config....skipping update..")
+            logger.debug(
+                f"{self.qualified_name} is disabled in global config....skipping update.."
+            )
 
     @tasks.loop(seconds=10)
     async def watch_config(self):
