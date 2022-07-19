@@ -85,7 +85,6 @@ try:
             )
         ]
 
-
         app = FastAPI(middleware=middleware)
         discord_client = DiscordOAuthClient(client_id, client_secret, redirect_uri,
                                             scopes=("email", "identify", "guilds"))
@@ -116,9 +115,13 @@ try:
 
         @app.middleware('http')
         async def check_for_login(request: Request, call_next):
-            if not os.getenv('DEBUG_SERVER', False) and not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
-                logger.debug("Not logged in")
-                return RedirectResponse("/login")
+            no_login = ["/user"]
+            if not any(map(lambda x: request.url.path.startswith(x), no_login)):
+                if os.getenv('DEBUG_SERVER', '').lower() != 'true' and not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
+                    logger.debug("Not logged in")
+                    return RedirectResponse("/login")
+                else:
+                    return await call_next(request)
             else:
                 return await call_next(request)
 
