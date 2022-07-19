@@ -2,5 +2,8 @@
 
 <img  src="https://cdn.discordapp.com/attachments/908104736455155762/963925809284919366/Animation-logo-emoji-discord.gif" width=400 />
 
+
+![](https://img.shields.io/badge/code%20style-black-black?style=for-the-badge)
+
 ## $Ranger$ is  a general purpose discord bot. Handcrafted for The Battlefield Discord Community 
 
