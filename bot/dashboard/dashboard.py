@@ -67,9 +67,9 @@ try:
         origins = [
             "http://vmi656705.contaboserver.net:5000",
             "https://vmi656705.contaboserver.net:5000",
-            "https://gorgeous-ghouls.github.io/",
-            re.compile("http://0.0.0.0:*"),
-            re.compile("http://localhost:*")
+            "https://gorgeous-ghouls.github.io",
+            "http://0.0.0.0:*",
+            "http://localhost:*"
         ]
 
         app = FastAPI()
