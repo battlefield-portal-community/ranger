@@ -42,7 +42,8 @@ class EmbedMessageManager(CogBase):
         try:
             if self.bot.config['cogs']['embed_message']['enabled']:
                 if self.config:
-                    for channel_, a_channel in zip_longest(self.config['channels'], self.applied_config.get("channels", [])):
+                    for channel_, a_channel in zip_longest(self.config['channels'],
+                                                           self.applied_config.get("channels", [])):
                         if channel_:
                             if channel := self.bot.get_channel(int(channel_['id'])):
                                 channel_['name'] = channel.name
@@ -50,8 +51,12 @@ class EmbedMessageManager(CogBase):
                                 for message, a_message in zip_longest(
                                         channel_['messages'], a_channel['messages'] if a_channel else []):
                                     try:
-                                        msg = await channel.get_partial_message(int(message['id'])).fetch() if message[
-                                            'id'] else None
+                                        partial_msg = channel.get_partial_message(int(message['id']))
+                                        if partial_msg:
+                                            msg = await partial_msg.fetch() if message[
+                                                'id'] else None
+                                        else:
+                                            msg = None
                                     except discord.NotFound or discord.Forbidden:
                                         msg = None
 
