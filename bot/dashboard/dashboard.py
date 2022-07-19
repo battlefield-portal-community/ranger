@@ -248,7 +248,7 @@ try:
             "https://vmi656705.contaboserver.net:5000",
             "https://gorgeous-ghouls.github.io",
             "http://0.0.0.0",
-            "http://localhost"
+            "http://localhost",
             "http://0.0.0.0:8000",
             "http://localhost:5000"
         ],
