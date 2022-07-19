@@ -247,16 +247,14 @@ try:
             "http://vmi656705.contaboserver.net:5000",
             "https://vmi656705.contaboserver.net:5000",
             "https://gorgeous-ghouls.github.io",
+            "http://0.0.0.0",
+            "http://localhost"
+            "http://0.0.0.0:8000",
+            "http://localhost:5000"
         ],
-        regex_origins = [
-            "http://0.0.0.0:.*",
-            "http://localhost:.*"
-        ]
-
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
-            allow_origin_regex=r"(?:http:\/\/0\.0\.0\.0:.*)|(?:http:\/\/localhost:.*)",
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
