@@ -55,6 +55,7 @@ try:
         from fastapi.responses import HTMLResponse
         from fastapi.staticfiles import StaticFiles
         from fastapi.templating import Jinja2Templates
+        from fastapi.middleware import Middleware
         from fastapi.middleware.cors import CORSMiddleware
         from starlette_discord import DiscordOAuthClient
         from starlette.middleware.sessions import SessionMiddleware
@@ -64,8 +65,28 @@ try:
         client_secret = os.getenv("DISCORD_SECRET")
         redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
 
+        origins = [
+            "http://vmi656705.contaboserver.net:5000",
+            "https://vmi656705.contaboserver.net:5000",
+            "https://gorgeous-ghouls.github.io",
+            "http://0.0.0.0",
+            "http://localhost",
+            "http://0.0.0.0:8000",
+            "http://localhost:5000"
+        ],
 
-        app = FastAPI()
+        middleware = [
+            Middleware(
+                CORSMiddleware,
+                allow_origins=['*'],
+                allow_credentials=True,
+                allow_methods=['*'],
+                allow_headers=['*']
+            )
+        ]
+
+
+        app = FastAPI(middleware=middleware)
         discord_client = DiscordOAuthClient(client_id, client_secret, redirect_uri,
                                             scopes=("email", "identify", "guilds"))
 
@@ -242,23 +263,6 @@ try:
                 return config_file, configs_base / "schemas" / "ranger" / f"{config_name}.schema.json"
             else:
                 return False
-
-        origins = [
-            "http://vmi656705.contaboserver.net:5000",
-            "https://vmi656705.contaboserver.net:5000",
-            "https://gorgeous-ghouls.github.io",
-            "http://0.0.0.0",
-            "http://localhost",
-            "http://0.0.0.0:8000",
-            "http://localhost:5000"
-        ],
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
         app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(64))
 
 except ConnectionError as e:
