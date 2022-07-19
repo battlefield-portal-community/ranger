@@ -64,13 +64,6 @@ try:
         client_secret = os.getenv("DISCORD_SECRET")
         redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
 
-        origins = [
-            "http://vmi656705.contaboserver.net:5000",
-            "https://vmi656705.contaboserver.net:5000",
-            "https://gorgeous-ghouls.github.io",
-            "http://0.0.0.0:*",
-            "http://localhost:*"
-        ]
 
         app = FastAPI()
         discord_client = DiscordOAuthClient(client_id, client_secret, redirect_uri,
@@ -250,9 +243,20 @@ try:
             else:
                 return False
 
+        origins = [
+            "http://vmi656705.contaboserver.net:5000",
+            "https://vmi656705.contaboserver.net:5000",
+            "https://gorgeous-ghouls.github.io",
+        ],
+        regex_origins = [
+            "http://0.0.0.0:.*",
+            "http://localhost:.*"
+        ]
+
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
+            allow_origin_regex=r"(?:http:\/\/0\.0\.0\.0:.*)|(?:http:\/\/localhost:.*)",
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
