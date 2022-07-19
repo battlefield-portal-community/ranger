@@ -66,26 +66,17 @@ try:
         redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
 
         origins = [
-            "http://vmi656705.contaboserver.net:5000",
-            "https://vmi656705.contaboserver.net:5000",
-            "https://gorgeous-ghouls.github.io",
-            "http://0.0.0.0",
-            "http://localhost",
-            "http://0.0.0.0:8000",
-            "http://localhost:5000"
-        ],
+                      "http://0.0.0.0",
+                      "http://localhost",
+                      "http://0.0.0.0:8000",
+                      "http://localhost:5000",
 
-        middleware = [
-            Middleware(
-                CORSMiddleware,
-                allow_origins=origins,
-                allow_credentials=True,
-                allow_methods=['*'],
-                allow_headers=['*']
-            )
+                      "http://vmi656705.contaboserver.net:5000",
+                      "https://vmi656705.contaboserver.net:5000",
+                      "https://gorgeous-ghouls.github.io",
         ]
 
-        app = FastAPI(middleware=middleware)
+        app = FastAPI()
         discord_client = DiscordOAuthClient(client_id, client_secret, redirect_uri,
                                             scopes=("email", "identify", "guilds"))
 
@@ -117,7 +108,8 @@ try:
         async def check_for_login(request: Request, call_next):
             no_login = ["/user"]
             if not any(map(lambda x: request.url.path.startswith(x), no_login)):
-                if os.getenv('DEBUG_SERVER', '').lower() != 'true' and not request.url.path.startswith("/login") and request.session.get("discord_user", None) is None:
+                if os.getenv('DEBUG_SERVER', '').lower() != 'true' and not request.url.path.startswith(
+                        "/login") and request.session.get("discord_user", None) is None:
                     logger.debug("Not logged in")
                     return RedirectResponse("/login")
                 else:
@@ -180,15 +172,9 @@ try:
             )
 
 
-        # @bot.event
-        # async def on_presence_update(before: discord.Member, after: discord.Member):
-        #     logger.debug((before.status, after.status))
-
-
         @app.get('/user/')
         async def get_user_info(id: int, guild_id: int):
             guild = bot.get_guild(guild_id)
-            logger.debug(guild.name)
             user = None
             if guild:
                 user = guild.get_member(id)
@@ -250,7 +236,8 @@ try:
 
 
         async def get_files(config_name: str) -> tuple[Path, Path] | bool:
-            schema_files = [config_file for config_file in list((configs_base / "schemas" / "ranger").glob("*.schema.json"))]
+            schema_files = [config_file for config_file in
+                            list((configs_base / "schemas" / "ranger").glob("*.schema.json"))]
             if f"{config_name}.schema" in [file.stem for file in schema_files]:
                 config_file = configs_path / f"{config_name}.json"
                 confile_file_default = configs_base / "defaults" / f"{config_name}.json"
@@ -266,7 +253,16 @@ try:
                 return config_file, configs_base / "schemas" / "ranger" / f"{config_name}.schema.json"
             else:
                 return False
+
+
         app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(64))
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=['*'],
+            allow_headers=['*']
+        )
 
 except ConnectionError as e:
     logger.critical(f"Unable to connect to Discord. exit error {e}")
