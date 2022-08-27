@@ -74,6 +74,7 @@ try:
             "http://localhost",
             "http://0.0.0.0:8000",
             "http://localhost:5000",
+            "http://ranger.stilllearning.tech",
             "https://ranger.stilllearning.tech",
             "https://gorgeous-ghouls.github.io",
         ]
