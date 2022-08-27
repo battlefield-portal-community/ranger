@@ -63,15 +63,18 @@ try:
 
         client_id = os.getenv("DISCORD_CLIENT_ID")
         client_secret = os.getenv("DISCORD_SECRET")
-        redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
+
+        if os.getenv("RANGER_DEBUG") == "True":
+            redirect_uri = f"http://{os.getenv('SERVER_HOSTNAME')}:5000/login/callback"
+        else:
+            redirect_uri = f"https://{os.getenv('SERVER_HOSTNAME')}/login/callback"
 
         origins = [
             "http://0.0.0.0",
             "http://localhost",
             "http://0.0.0.0:8000",
             "http://localhost:5000",
-            "http://vmi656705.contaboserver.net:5000",
-            "https://vmi656705.contaboserver.net:5000",
+            "https://ranger.stilllearning.tech",
             "https://gorgeous-ghouls.github.io",
         ]
 
