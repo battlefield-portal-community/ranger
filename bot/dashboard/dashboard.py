@@ -77,6 +77,8 @@ try:
             "http://ranger.stilllearning.tech",
             "https://ranger.stilllearning.tech",
             "https://gorgeous-ghouls.github.io",
+            "https://stillearning.tech",
+            "http://stillearning.tech",
         ]
 
         app = FastAPI()
