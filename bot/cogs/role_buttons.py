@@ -51,17 +51,27 @@ class Button(discord.ui.Button):
                         )
 
                 if role:
-                    await interaction.user.add_roles(role)
-                    if self.count is not None:
-                        mem = interaction.guild.get_role(self.role_id).members
-                        self.count = f"{len(mem)}"
-                        self.label = self.true_label + f" ({self.count})"
-                        await interaction.message.edit(
-                            embeds=interaction.message.embeds, view=self.view
+                    if role not in interaction.user.roles:
+                        await interaction.user.add_roles(role)
+                        if self.count is not None:
+                            mem = interaction.guild.get_role(self.role_id).members
+                            self.count = f"{len(mem)}"
+                            self.label = self.true_label + f" ({self.count})"
+                            await interaction.message.edit(
+                                embeds=interaction.message.embeds, view=self.view
+                            )
+                        await interaction.response.send_message(
+                            f"Role **{role}** added successfully",
+                            ephemeral=True,
+                            delete_after=5,
                         )
-                    await interaction.response.send_message(
-                        "Successful", ephemeral=True, delete_after=5
-                    )
+                    else:
+                        await interaction.user.remove_roles(role)
+                        await interaction.response.send_message(
+                            f"Role **{role}** removed successfully",
+                            ephemeral=True,
+                            delete_after=5,
+                        )
                 else:
                     await interaction.response.send_message(
                         "❌ Failed", ephemeral=True, delete_after=10
