@@ -5,5 +5,7 @@
 
 ![](https://img.shields.io/badge/code%20style-black-black?style=for-the-badge)
 
+[![MakeDockerImage](https://github.com/battlefield-portal-community/ranger/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/battlefield-portal-community/ranger/actions/workflows/docker-publish.yml)
+
 ## $Ranger$ is  a general purpose discord bot. Handcrafted for The Battlefield Discord Community 
 
