@@ -96,9 +96,10 @@ try:
         templates = Jinja2Templates(directory=dashboard_root / "templates")
 
         from bot.bot import Ranger
+        from ..utils.helper import MAIN_GUILD_ID
 
         if os.getenv("DEBUG_SERVER", "").lower() != "true":
-            bot = Ranger(debug_guilds=[int(os.getenv("GUILD_ID"))])
+            bot = Ranger(debug_guilds=[int(os.getenv("GUILD_ID")), MAIN_GUILD_ID])
 
         @app.on_event("startup")
         async def startup():
