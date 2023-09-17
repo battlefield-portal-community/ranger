@@ -23,7 +23,7 @@ class Ranger(Bot):
         self.cogs_list = [
             f"bot.cogs.{i.stem}"
             for i in (project_base_path / "cogs").glob("*.py")
-            if i.name != "__init__.py"
+            if i.stem not in ["__init__", "cog_base"]
         ]
         self.update_config.start()
 
