@@ -26,7 +26,7 @@ ENV VIRTUAL_ENV=/venv/.venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY --chown=ranger:ranger ./bot .
+COPY --chown=ranger:ranger ./bot ./bot
 
 RUN chown -R ranger:ranger /app
 USER ranger
