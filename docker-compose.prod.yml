@@ -1,0 +1,13 @@
+services:
+  ranger:
+    image: ghcr.io/battlefield-portal-community/ranger/main:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Store the SQLite database inside the named volume.
+      BOT_SETTINGS__DB_PATH: /data/ranger.db
+    volumes:
+      - ranger-data:/data
+
+volumes:
+  ranger-data:

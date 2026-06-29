@@ -36,6 +36,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Persisted SQLite location; a named volume mounted here inherits app ownership.
+RUN mkdir -p /data && chown app:app /data
+VOLUME ["/data"]
+
 USER app
 
 CMD ["python", "-m", "app"]
