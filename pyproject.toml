@@ -7,3 +7,14 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = []
+
+[project.scripts]
+app = "app.__main__:start"
+
+[build-system]
+requires = ["uv_build<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+module-root = "src"
