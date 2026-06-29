@@ -1,33 +1,41 @@
-FROM python:3.11-buster as builder
-RUN pip install poetry==1.5.1
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1
+FROM python:3.14.6-slim-bookworm AS builder
 
-WORKDIR /venv
-RUN apt-get update --yes --quiet && apt-get install --yes --quiet --no-install-recommends git
-RUN touch README.md
-
-COPY ["pyproject.toml", "poetry.lock", "./"]
-RUN poetry config installer.max-workers 10
-RUN poetry install --no-root --no-cache
-
-FROM python:3.11-slim-buster as local
-
-RUN apt-get update && apt-get install libpq5 -y
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
 WORKDIR /app
-RUN useradd --create-home ranger
 
-# Set environment variables.
-# 1. Force Python stdout and stderr streams to be unbuffered.
-ENV VIRTUAL_ENV=/venv/.venv
+# Install dependencies first (better layer caching) - no project sources yet
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
 
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+COPY pyproject.toml uv.lock ./
+COPY src ./src
 
-COPY --chown=ranger:ranger ./bot ./bot
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
-RUN chown -R ranger:ranger /app
-USER ranger
 
+FROM python:3.14.6-slim-bookworm AS runtime
+
+RUN groupadd --system --gid 1001 app \
+ && useradd  --system --uid 1001 --gid app --home /app --shell /sbin/nologin app
+
+WORKDIR /app
+
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder --chown=app:app /app/src  /app/src
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/src" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+USER app
+
+CMD ["python", "-m", "app"]
