@@ -58,16 +58,23 @@ class PlaytestModal(discord.ui.Modal):
 
         # Order: Description, Experience Code, Regions.
         self.add_item(
-            discord.ui.Label(text="Playtest Description", component=self.description_input)
+            discord.ui.Label(
+                text="Playtest Description",
+                description="Markdown is supported.",
+                component=self.description_input)
         )
         self.add_item(
             discord.ui.Label(
                 text="Experience Code",
-                description="Optional short code used to host the server.",
+                description="**Optional** short code used to host the server.",
                 component=self.code_input,
             )
         )
-        self.add_item(discord.ui.Label(text="Regions to ping", component=self.region_select))
+        self.add_item(discord.ui.Label(
+            text="Regions to ping",
+            description="Selection is saved for next time.",
+            component=self.region_select
+        ))
 
     def _resolve_roles(
         self, guild: discord.Guild | None, selected: list[str]
