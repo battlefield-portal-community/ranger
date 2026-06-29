@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,7 +28,7 @@ load_dotenv()
 class BotSettings(BaseModel):
     """Global, bot-wide settings."""
 
-    DISCORD_TOKEN: str = Field()
+    DISCORD_TOKEN: SecretStr
     GUILD_ID: int = Field()
     DB_PATH: str = Field(default="ranger.db")
     LOG_LEVEL: str = Field(default="INFO")

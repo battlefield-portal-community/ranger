@@ -16,8 +16,8 @@ def start() -> None:
     )
     bot = Ranger()
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting bot with config: {json.dumps(env.model_dump(), indent=2, sort_keys=True)}")
-    bot.run(env.BOT_SETTINGS.DISCORD_TOKEN, log_handler=None)
+    logger.info(f"Starting bot with config: {env.model_dump_json(indent=2)}")
+    bot.run(env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value(), log_handler=None)
 
 
 if __name__ == "__main__":
