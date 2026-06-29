@@ -1,0 +1,14 @@
+{
+  "guilds": [
+    {
+      "guild_name": "bfportal",
+      "report": {
+          "forum": 1006491137441276005,
+          "target": 1152930428714483813,
+          "stats_embed": null,
+          "report_embed": null
+      },
+      "guild_id": 870246147455877181
+    }
+  ]
+}

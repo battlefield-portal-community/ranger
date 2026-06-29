@@ -238,8 +238,8 @@ def has_tag(thread: discord.Thread, tag_id: int):
     return tag_id in [tag.id for tag in thread.applied_tags]
 
 
-def setup(bot: Ranger):
-    bot.add_cog(ForumAnalyser(bot))
+#def setup(bot: Ranger):
+#    bot.add_cog(ForumAnalyser(bot))
 
 
 if __name__ == '__main__':
