@@ -170,11 +170,11 @@ class PlaytestModal(discord.ui.Modal):
         thread_name = (f"Playtest {code}" if code else f"Playtest by {interaction.user.display_name}")[
             :100
         ]
-        await message.create_thread(name=thread_name)
+        thread: discord.Thread = await message.create_thread(name=thread_name)
 
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
         await interaction.response.send_message(
-            f"✅ Scheduled in {channel.mention}!{note}", ephemeral=True
+            f"✅ Playtest Scheduled, Thread: {thread.mention}!{note}", ephemeral=True
         )
 
 
@@ -238,7 +238,8 @@ class PlaytestCog(commands.Cog):
             title="🎮 Playtest Scheduler",
             description=(
                 "Click the button below to schedule a new playtest session.\n"
-                "You'll add a description and choose the regions to ping."
+                "You'll add a description and choose the regions to ping.\n"
+                "Then the bot will post an announcement and open a thread for the playtest."
             ),
             color=discord.Color.blurple(),
         )
