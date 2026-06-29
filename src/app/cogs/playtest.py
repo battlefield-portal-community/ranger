@@ -10,9 +10,10 @@ remembered and pre-filled next time.
 from __future__ import annotations
 
 import logging
+from warnings import deprecated
 
 import discord
-from discord import app_commands
+from discord import app_commands, TextChannel
 from discord.ext import commands
 
 from .. import db
@@ -68,14 +69,10 @@ class PlaytestModal(discord.ui.Modal):
         )
         self.add_item(discord.ui.Label(text="Regions to ping", component=self.region_select))
 
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        selected = list(self.region_select.values)
-        description = self.description_input.value.strip()
-        code = self.code_input.value.strip()
-
-        await db.set_user_regions(interaction.user.id, selected)
-
-        guild = interaction.guild
+    def _resolve_roles(
+        self, guild: discord.Guild | None, selected: list[str]
+    ) -> tuple[list[discord.Role], list[str]]:
+        """Map selected region keys to roles, collecting any that can't be found."""
         roles: list[discord.Role] = []
         missing: list[str] = []
         for key in selected:
@@ -86,7 +83,18 @@ class PlaytestModal(discord.ui.Modal):
             else:
                 missing.append(key)
                 log.warning("Region role missing for %r (id=%s)", key, role_id)
+        return roles, missing
 
+    @deprecated()
+    async def _send_embed_announcement(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.abc.Messageable,
+        roles: list[discord.Role],
+        description: str,
+        code: str,
+    ) -> discord.Message:
+        """Post the announcement as a rich embed."""
         embed = discord.Embed(
             title=f"🎮 Playtest: {code}" if code else "🎮 New Playtest",
             description=description,
@@ -94,21 +102,63 @@ class PlaytestModal(discord.ui.Modal):
         )
         if code:
             embed.add_field(name="Experience Code", value=f"`{code}`", inline=True)
-        embed.add_field(name="Regions", value=", ".join(selected), inline=True)
+        embed.add_field(
+            name="Regions",
+            value=" ".join(r.mention for r in roles) or "—",
+            inline=True,
+        )
         embed.set_author(
             name=interaction.user.display_name,
             icon_url=interaction.user.display_avatar.url,
         )
 
-        channel_id = env.PLAYTEST_COG_SETTINGS.ANNOUNCE_CHANNEL_ID
-        channel = interaction.client.get_channel(channel_id) or await interaction.client.fetch_channel(
-            channel_id
-        )
-
-        message = await channel.send(
+        return await channel.send(
             content=" ".join(r.mention for r in roles) or None,
             embed=embed,
             allowed_mentions=discord.AllowedMentions(roles=roles or False),
+        )
+
+    async def _send_plain_announcement(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.abc.Messageable,
+        roles: list[discord.Role],
+        description: str,
+        code: str,
+    ) -> discord.Message:
+        """Post the announcement as a plain text message (no embed)."""
+        lines = [
+            f"🎮 **Playtest: {code}**" if code else "🎮 **New Playtest**",
+            f"Scheduled by **{interaction.user.display_name}**",
+            "",
+            description,
+            "",
+        ]
+        if code:
+            lines.append(f"**Experience Code:** `{code}`")
+        lines.append(f"**Regions:** {' '.join(r.mention for r in roles) or '—'}")
+
+        return await channel.send(
+            content="\n".join(lines),
+            allowed_mentions=discord.AllowedMentions(roles=roles or False),
+        )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        selected = list(self.region_select.values)
+        description = self.description_input.value.strip()
+        code = self.code_input.value.strip()
+
+        await db.set_user_regions(interaction.user.id, selected)
+
+        roles, missing = self._resolve_roles(interaction.guild, selected)
+
+        channel_id = env.PLAYTEST_COG_SETTINGS.ANNOUNCE_CHANNEL_ID
+        channel: TextChannel = interaction.client.get_channel(channel_id) or await interaction.client.fetch_channel(
+            channel_id
+        )
+
+        message = await self._send_plain_announcement(
+            interaction, channel, roles, description, code
         )
         thread_name = (f"Playtest {code}" if code else f"Playtest by {interaction.user.display_name}")[
             :100
@@ -175,7 +225,7 @@ class PlaytestCog(commands.Cog):
     async def ensure_menu_message(self) -> None:
         """Post the menu message once, or edit the existing one on restart."""
         channel_id = env.PLAYTEST_COG_SETTINGS.MENU_CHANNEL_ID
-        channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
+        channel: TextChannel  = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         embed = discord.Embed(
             title="🎮 Playtest Scheduler",
