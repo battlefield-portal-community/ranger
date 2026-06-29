@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 
 from .bot import Ranger
 from .config import env
@@ -14,7 +15,9 @@ def start() -> None:
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
     bot = Ranger()
-    bot.run(env.BOT_SETTINGS.discord_token, log_handler=None)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting bot with config: {json.dumps(env.model_dump(), indent=2, sort_keys=True)}")
+    bot.run(env.BOT_SETTINGS.DISCORD_TOKEN, log_handler=None)
 
 
 if __name__ == "__main__":

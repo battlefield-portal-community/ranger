@@ -100,7 +100,7 @@ class PlaytestModal(discord.ui.Modal):
             icon_url=interaction.user.display_avatar.url,
         )
 
-        channel_id = env.PLAYTEST_COG_SETTINGS.announce_channel_id
+        channel_id = env.PLAYTEST_COG_SETTINGS.ANNOUNCE_CHANNEL_ID
         channel = interaction.client.get_channel(channel_id) or await interaction.client.fetch_channel(
             channel_id
         )
@@ -174,7 +174,7 @@ class PlaytestCog(commands.Cog):
 
     async def ensure_menu_message(self) -> None:
         """Post the menu message once, or edit the existing one on restart."""
-        channel_id = env.PLAYTEST_COG_SETTINGS.menu_channel_id
+        channel_id = env.PLAYTEST_COG_SETTINGS.MENU_CHANNEL_ID
         channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(channel_id)
 
         embed = discord.Embed(

@@ -32,13 +32,13 @@ class Ranger(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
-        await init_db(env.BOT_SETTINGS.db_path)
+        await init_db(env.BOT_SETTINGS.DB_PATH)
         await self._load_cogs()
 
-        guild = discord.Object(id=env.BOT_SETTINGS.guild_id)
+        guild = discord.Object(id=env.BOT_SETTINGS.GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
-        log.info("Synced application commands to guild %s", env.BOT_SETTINGS.guild_id)
+        log.info("Synced application commands to guild %s", env.BOT_SETTINGS.GUILD_ID)
 
     async def _load_cogs(self) -> None:
         for path in sorted(COGS_DIR.glob("*.py")):
