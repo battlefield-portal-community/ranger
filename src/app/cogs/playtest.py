@@ -85,7 +85,7 @@ class PlaytestModal(discord.ui.Modal):
                 log.warning("Region role missing for %r (id=%s)", key, role_id)
         return roles, missing
 
-    @deprecated()
+    @deprecated("Deprecated in favor of _send_plain_announcement().")
     async def _send_embed_announcement(
         self,
         interaction: discord.Interaction,
@@ -128,7 +128,7 @@ class PlaytestModal(discord.ui.Modal):
     ) -> discord.Message:
         """Post the announcement as a plain text message (no embed)."""
         lines = [
-            f"🎮 **Playtest: {code}**" if code else "🎮 **New Playtest**",
+            "# 🎮 New Playtest",
             f"Scheduled by **{interaction.user.display_name}**",
             "",
             description,
