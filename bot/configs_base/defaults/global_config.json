@@ -1,9 +1,0 @@
-{
-  "cogs": {
-    "embed_message": {
-      "enabled": true,
-      "name": "embed_message"
-    }
-
-  }
-}

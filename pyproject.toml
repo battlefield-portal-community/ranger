@@ -1,22 +1,9 @@
 [project]
 name = "ranger"
-version = "1.0.0"
-description = ""
-authors = [{ name = "MagneticNeedle", email = "solankivibhakar82@gmail.com" }]
-requires-python = ">=3.11,<4"
-readme = "README.md"
-license = "MIT"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
+version = "0.1.0"
+description = "General Purpose  bot for BFPC"
+authors = [
+    { name = "MagneticNeedle", email = "solankivibhakar82@gmail.com" }
 ]
+requires-python = ">=3.11"
 dependencies = []
-
-[tool.uv]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
