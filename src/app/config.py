@@ -34,7 +34,7 @@ class PlaytestCogSettings(BaseModel):
 
     menu_channel_id: int
     announce_channel_id: int
-    regions_config_path: str = "config/regions.json"
+    regions_config_dir: str = "config"
 
 
 class Settings(BaseSettings):
@@ -54,10 +54,15 @@ env = Settings()
 
 @lru_cache(maxsize=1)
 def load_regions() -> dict[str, int]:
-    """Load the curated region -> role-id mapping from the configured JSON file.
+    """Load the curated region -> role-id mapping for the configured guild.
+
+    The file is selected per-guild as ``<regions_config_dir>/regions.<guild_id>.json``
+    so multiple guilds can each have their own region -> role mapping. The guild
+    id comes from ``BOT_SETTINGS.guild_id``.
 
     Returns an insertion-ordered mapping (region name -> Discord role id).
     """
-    path = Path(env.PLAYTEST_COG_SETTINGS.regions_config_path)
+    guild_id = env.BOT_SETTINGS.guild_id
+    path = Path(env.PLAYTEST_COG_SETTINGS.regions_config_dir) / f"regions.{guild_id}.json"
     raw = json.loads(path.read_text())
     return {str(name): int(role_id) for name, role_id in raw.items()}
