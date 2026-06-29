@@ -30,6 +30,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/src  /app/src
+COPY --chown=app:app config ./config
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
