@@ -1,32 +1,22 @@
-[tool.poetry]
+[project]
 name = "ranger"
 version = "1.0.0"
 description = ""
-authors = ["p0lygun <solankivibhakar82@gmail.com>"]
-license = "MIT"
+authors = [{ name = "MagneticNeedle", email = "solankivibhakar82@gmail.com" }]
+requires-python = ">=3.11,<4"
 readme = "README.md"
-packages = [
-    {include = "bot", from = "."},
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
+dependencies = []
 
-[tool.poetry.dependencies]
-python = "^3.11"
-fastapi = "^0.103.1"
-uvicorn = {extras = ["standard"], version = "^0.23.2"}
-py-cord = {extras = ["speed"], version = "^2.4.1"}
-python-dotenv = "^1.0.0"
-dictdiffer = "^0.9.0"
-starlette-discord = {git = "https://github.com/p0lygun/starlette-discord.git"}
-loguru = "^0.7.2"
-itsdangerous = "^2.1.2"
-jinja2 = "^3.1.2"
-aiofiles = "^23.2.1"
-
-
-[tool.poetry.scripts]
-ranger = "bot.__main__:main"
-
+[tool.uv]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
