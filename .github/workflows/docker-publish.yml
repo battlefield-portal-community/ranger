@@ -54,4 +54,4 @@ jobs:
 
       - name: Trigger Portainer redeploy webhook
         continue-on-error: true
-        run: curl -sS -X POST --max-time 30 "${{ secrets.PORTAINER_WEBHOOK_URL }}" || true
+        run: curl -sS -X POST --max-time 30 "${{ secrets.PORTAINER_WEBHOOK_URL }}?COMMIT_ID=${{ github.sha }}" || true
