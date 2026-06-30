@@ -53,4 +53,5 @@ class Ranger(commands.Bot):
 
     async def on_ready(self) -> None:
         user = self.user
+        await self.change_presence(status=discord.Status.online)
         log.info("Logged in as %s (id=%s)", user, user.id if user else "?")
