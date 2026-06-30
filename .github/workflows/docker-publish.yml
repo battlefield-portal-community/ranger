@@ -51,3 +51,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Trigger Portainer redeploy webhook
+        continue-on-error: true
+        run: curl -sS -X POST --max-time 30 "${{ secrets.PORTAINER_WEBHOOK_URL }}" || true
