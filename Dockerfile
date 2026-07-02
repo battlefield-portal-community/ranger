@@ -43,4 +43,6 @@ VOLUME ["/data"]
 
 USER app
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD [ "python", "-m", "app.health" ]
+
 CMD ["python", "-m", "app"]
