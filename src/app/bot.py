@@ -17,7 +17,6 @@ from discord.ext import commands, tasks
 
 from .config import env
 from .db import init_db
-from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -36,14 +35,13 @@ class Ranger(commands.Bot):
     def write_health_state(self) -> None:
         """Write the current health state for the Docker health probe"""
 
-        latency = self.latency
         """Normalizing latency value"""
-        if math.isnan(latency):
+        if math.isnan(self.latency):
             latency = None
 
         state = {
             "timestamp": time.time(),
-            "latency": latency,
+            "latency": self.latency,
         }
 
         path = Path(env.BOT_SETTINGS.HEALTH_STATE_FILE)
@@ -52,9 +50,12 @@ class Ranger(commands.Bot):
         tmp_path.write_text(json.dumps(state))
         tmp_path.replace(path) # To avoid the race condition
     
-    @tasks.loop()
+    @tasks.loop(seconds = env.BOT_SETTINGS.HEALTH_HEARTBEAT_INTERVAL)
     async def health_loop(self):
-        self.write_health_state()
+        try:
+            self.write_health_state()
+        except Exception:
+            log.exception("Failed to update the health state")
 
     async def setup_hook(self) -> None:
         await init_db(env.BOT_SETTINGS.DB_PATH)
@@ -65,7 +66,7 @@ class Ranger(commands.Bot):
         await self.tree.sync(guild=guild)
         log.info("Synced application commands to guild %s", env.BOT_SETTINGS.GUILD_ID)
 
-        self.health_loop.change_interval(seconds = env.BOT_SETTINGS.HEALTH_HEARTBEAT_INTERVAL)
+        # self.health_loop.change_interval(seconds = env.BOT_SETTINGS.HEALTH_HEARTBEAT_INTERVAL)
         self.health_loop.start()
 
     async def _load_cogs(self) -> None:

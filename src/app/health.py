@@ -21,8 +21,6 @@ def main() -> int:
         return 1
     if not math.isfinite(latency):
         return 1
-    if latency is None:
-        return 1
     
     return 0
 
