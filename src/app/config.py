@@ -34,6 +34,11 @@ class BotSettings(BaseModel):
     LOG_LEVEL: str = Field(default="INFO")
     DEBUG: bool = Field(default=False)
 
+    HEALTH_STATE_FILE: str = Field(default="/tmp/ranger.health")
+    HEALTH_HEARTBEAT_INTERVAL: int = Field(default=15)
+    HEALTH_STALE_THRESHOLD: int = Field(default=45)
+
+
 
 class PlaytestCogSettings(BaseModel):
     """Settings owned by the playtest cog."""
