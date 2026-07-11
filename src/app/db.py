@@ -1,8 +1,10 @@
 """Async SQLite storage for the bot.
 
-Holds two things:
+Holds:
 - ``user_regions``: each user's last region selection, so the playtest modal can
   pre-fill it next time.
+- ``playtests``: the details of each scheduled playtest, keyed to its announcement
+  message so it can be looked up and edited later.
 - ``bot_state``: small key/value state, currently the posted menu message id so we
   edit it on restart instead of posting a duplicate.
 
@@ -14,6 +16,7 @@ it around.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 
 import aiosqlite
 
@@ -24,6 +27,14 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_regions (
     user_id INTEGER PRIMARY KEY,
     regions TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playtests (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    message_id TEXT NOT NULL UNIQUE,
+    region TEXT NOT NULL,
+    description TEXT NOT NULL,
+    code TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS bot_state (
     key   TEXT PRIMARY KEY,
@@ -70,6 +81,60 @@ async def set_user_regions(user_id: int, regions: list[str]) -> None:
             (user_id, json.dumps(regions)),
         )
         await conn.commit()
+
+
+@dataclass(frozen=True)
+class Playtest:
+    """A scheduled playtest as stored in the ``playtests`` table."""
+
+    id: int
+    user_id: str
+    message_id: str
+    regions: list[str]
+    description: str
+    code: str
+
+
+async def set_playtest(
+    user_id: str,
+    message_id: str,
+    regions: list[str],
+    description: str,
+    code: str,
+) -> None:
+    """Insert a playtest, or update it in place if one already exists for the
+    announcement message (upsert, keyed on ``message_id``)."""
+    async with aiosqlite.connect(_path()) as conn:
+        await conn.execute(
+            """
+            INSERT INTO playtests (user_id, message_id, region, description, code)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(message_id) DO UPDATE SET
+                user_id = excluded.user_id,
+                region = excluded.region,
+                description = excluded.description,
+                code = excluded.code
+            """,
+            (user_id, message_id, json.dumps(regions), description, code),
+        )
+        await conn.commit()
+
+
+async def get_playtest(message_id: str) -> Playtest | None:
+    """Return the playtest for an announcement message, or None if absent."""
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(
+            """
+            SELECT id, user_id, message_id, region, description, code
+            FROM playtests WHERE message_id = ?
+            """,
+            (message_id,),
+        ) as cur:
+            row = await cur.fetchone()
+    if row is None:
+        return None
+    id_, user_id, msg_id, regions, description, code = row
+    return Playtest(id_, user_id, msg_id, json.loads(regions), description, code)
 
 
 async def get_state(key: str) -> str | None:
