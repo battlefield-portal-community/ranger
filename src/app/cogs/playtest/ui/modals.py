@@ -124,6 +124,10 @@ class NewPlaytestModal(PlaytestModal):
     modal_title = "Schedule a Playtest"
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        # Posting the announcement, thread and pin takes longer than the 3s
+        # interaction window, so acknowledge first and reply via followup.
+        await interaction.response.defer(ephemeral=True)
+
         selected, description, code = self._read_inputs()
 
         await db.set_user_regions(interaction.user.id, selected)
@@ -133,7 +137,7 @@ class NewPlaytestModal(PlaytestModal):
         channel = await get_announcement_channel(interaction.guild)
 
         if channel is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "Couldn't find the announcement channel. Please contact an admin.",
                 ephemeral=True,
             )
@@ -153,7 +157,7 @@ class NewPlaytestModal(PlaytestModal):
         )
         await first_message.pin()
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"✅ Playtest Scheduled, Thread: {thread.mention}!{note}", ephemeral=True
         )
         await db.set_playtest(
@@ -201,6 +205,10 @@ class UpdatePlaytestModal(PlaytestModal):
         )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        # Editing the announcement can exceed the 3s interaction window, so
+        # acknowledge first and reply via followup.
+        await interaction.response.defer(ephemeral=True)
+
         selected, description, code = self._read_inputs()
 
         roles, missing = self._resolve_roles(interaction.guild, selected)
@@ -216,7 +224,7 @@ class UpdatePlaytestModal(PlaytestModal):
             code=code,
         )
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"✅ Playtest updated!{note}", ephemeral=True
         )
 
