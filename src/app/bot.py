@@ -48,9 +48,9 @@ class Ranger(commands.Bot):
         tmp_path = path.with_suffix(path.suffix + ".tmp")
 
         tmp_path.write_text(json.dumps(state))
-        tmp_path.replace(path) # To avoid the race condition
-    
-    @tasks.loop(seconds = env.BOT_SETTINGS.HEALTH_HEARTBEAT_INTERVAL)
+        tmp_path.replace(path)  # To avoid the race condition
+
+    @tasks.loop(seconds=env.BOT_SETTINGS.HEALTH_HEARTBEAT_INTERVAL)
     async def health_loop(self):
         try:
             self.write_health_state()

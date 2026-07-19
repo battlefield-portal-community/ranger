@@ -25,6 +25,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
 
+
 class BotSettings(BaseModel):
     """Global, bot-wide settings."""
 
@@ -37,7 +38,6 @@ class BotSettings(BaseModel):
     HEALTH_STATE_FILE: str = Field(default="/tmp/ranger.health")
     HEALTH_HEARTBEAT_INTERVAL: int = Field(default=15)
     HEALTH_STALE_THRESHOLD: int = Field(default=45)
-
 
 
 class PlaytestCogSettings(BaseModel):
@@ -70,6 +70,8 @@ def load_regions() -> dict[str, int]:
     Returns an insertion-ordered mapping (region name -> Discord role id).
     """
     guild_id = env.BOT_SETTINGS.GUILD_ID
-    path = Path(env.PLAYTEST_COG_SETTINGS.REGIONS_CONFIG_DIR) / f"regions.{guild_id}.json"
+    path = (
+        Path(env.PLAYTEST_COG_SETTINGS.REGIONS_CONFIG_DIR) / f"regions.{guild_id}.json"
+    )
     raw = json.loads(path.read_text())
     return {str(name): int(role_id) for name, role_id in raw.items()}
