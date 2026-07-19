@@ -21,6 +21,34 @@ from ..announcements import (
 
 log = logging.getLogger(__name__)
 
+# Name of the slash command users run inside a thread to edit their playtest.
+# Defined in the cog; kept as a literal here to avoid a circular import.
+UPDATE_COMMAND_NAME = "update-playtest"
+
+
+async def _command_mention(interaction: discord.Interaction, name: str) -> str:
+    """Return a clickable command mention (``</name:id>``), or ``/name`` on failure."""
+    try:
+        commands = await interaction.client.tree.fetch_commands(guild=interaction.guild)
+    except discord.HTTPException:
+        log.warning("Couldn't fetch commands to mention %r", name)
+        return f"/{name}"
+    for command in commands:
+        if command.name == name:
+            return command.mention
+    return f"/{name}"
+
+
+async def _delete_pin_notification(thread: discord.Thread) -> None:
+    """Remove the "pinned a message" system message Discord posts when we pin."""
+    async for message in thread.history(limit=5):
+        if message.type is discord.MessageType.pins_add:
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                log.warning("Failed to delete pin notification in thread %s", thread.id)
+            return
+
 
 class PlaytestModal(discord.ui.Modal):
     """Base modal capturing description, experience code and regions (in that order).
@@ -152,10 +180,10 @@ class NewPlaytestModal(PlaytestModal):
             else f"Playtest by {interaction.user.display_name}"
         )[:100]
         thread: discord.Thread = await message.create_thread(name=thread_name)
-        first_message = await thread.send(
-            "use /update-playtest command to update the playtest"
-        )
+        mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
+        first_message = await thread.send(f"Use {mention} to update the playtest.")
         await first_message.pin()
+        await _delete_pin_notification(thread)
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
         await interaction.followup.send(
             f"✅ Playtest Scheduled, Thread: {thread.mention}!{note}", ephemeral=True
