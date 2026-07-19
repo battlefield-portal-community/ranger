@@ -38,7 +38,6 @@ async def build_announcement_message(
 ) -> list[str]:
     lines = [
         "# 🎮 New Playtest",
-        f"Scheduled by **<@{user_id}>**",
         "",
         description,
         "",
@@ -46,7 +45,7 @@ async def build_announcement_message(
     if code:
         lines.append(f"**Experience Code:** `{code}`")
     lines.append(f"**Regions:** {' '.join(r.mention for r in roles) or '—'}")
-
+    lines.append(f"-# scheduled by **<@{user_id}>**")
     return lines
 
 
