@@ -70,10 +70,17 @@ class Ranger(commands.Bot):
         self.health_loop.start()
 
     async def _load_cogs(self) -> None:
-        for path in sorted(COGS_DIR.glob("*.py")):
+        for path in sorted(COGS_DIR.iterdir()):
             if path.stem == "__init__":
                 continue
-            ext = f"app.cogs.{path.stem}"
+            # A cog is either a top-level module or a package directory.
+            if path.suffix == ".py":
+                name = path.stem
+            elif path.is_dir() and (path / "__init__.py").exists():
+                name = path.name
+            else:
+                continue
+            ext = f"app.cogs.{name}"
             try:
                 await self.load_extension(ext)
                 log.info("Loaded cog %s", ext)
