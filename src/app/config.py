@@ -46,6 +46,8 @@ class PlaytestCogSettings(BaseModel):
     MENU_CHANNEL_ID: int
     ANNOUNCE_CHANNEL_ID: int
     REGIONS_CONFIG_DIR: str = "config"
+    # Role ids allowed to update a playtest (moderators/admins).
+    MOD_ROLE_IDS: list[int] = Field(default_factory=list)
 
 
 class Settings(BaseSettings):
