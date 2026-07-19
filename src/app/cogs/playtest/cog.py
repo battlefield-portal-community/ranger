@@ -46,9 +46,9 @@ class PlaytestCog(commands.Cog):
         await interaction.response.send_modal(build_playtest_modal(saved))
 
     @app_commands.command(
-        name="update-playtest-message", description="Update the playtest menu message"
+        name="update-playtest", description="Update the playtest menu message"
     )
-    async def update_playtest_message(
+    async def update_playtest(
         self, interaction: discord.Interaction
     ) -> Message | None:
         try:
