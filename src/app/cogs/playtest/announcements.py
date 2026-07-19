@@ -15,6 +15,52 @@ from ...config import env
 
 log = logging.getLogger(__name__)
 
+# Emoji and title pools for the announcement header. One of each is picked
+# independently but deterministically per playtest (seeded on the announcement
+# message id) so the header stays stable across edits.
+ANNOUNCEMENT_EMOJIS = (
+    "🚀",
+    "⚡",
+    "🔥",
+    "🎉",
+    "🕹️",
+    "👾",
+    "🎯",
+    "🛠️",
+    "🎮",
+    "🧪",
+    "🎲",
+    "🏁",
+    "💥",
+    "🎖️",
+    "🚁",
+)
+
+ANNOUNCEMENT_TITLES = (
+    "Playtest Incoming",
+    "Fresh Playtest Drop",
+    "New Playtest Live",
+    "Playtest Time",
+    "Jump Into a Playtest",
+    "Playtest Needs You",
+    "New Playtest - Dive In",
+    "Help Us Test This",
+    "New Playtest",
+    "New Experiment Live",
+    "Playtest Just Dropped",
+    "New Playtest Ready",
+    "New Playtest Deployed",
+    "New Mission: Playtest",
+    "Playtest Inbound",
+)
+
+
+def pick_announcement_header(seed: int) -> str:
+    """Deterministically pick an emoji and title so it's stable across edits."""
+    emoji = ANNOUNCEMENT_EMOJIS[seed % len(ANNOUNCEMENT_EMOJIS)]
+    title = ANNOUNCEMENT_TITLES[(seed // len(ANNOUNCEMENT_EMOJIS)) % len(ANNOUNCEMENT_TITLES)]
+    return f"{emoji} {title}"
+
 
 async def get_announcement_channel(guild: discord.Guild | None) -> TextChannel | None:
     if not guild:
@@ -32,12 +78,13 @@ async def get_announcement_channel(guild: discord.Guild | None) -> TextChannel |
 
 async def build_announcement_message(
     user_id: int,
+    seed: int,
     description: str,
     code: str,
     roles: list[discord.Role],
 ) -> list[str]:
     lines = [
-        "# 🎮 New Playtest",
+        f"# {pick_announcement_header(seed)}",
         "",
         description,
         "",
@@ -57,11 +104,17 @@ async def send_announcement(
     code: str,
 ) -> discord.Message:
     """Post the announcement as a plain text message (no embed)."""
-    message = await build_announcement_message(user_id, description, code, roles)
-    return await channel.send(
-        content="\n".join(message),
-        allowed_mentions=discord.AllowedMentions(roles=roles or False),
+    mentions = discord.AllowedMentions(roles=roles or False)
+    # Post first so the message exists (its id also becomes the id of the thread
+    # created from it), then re-render the header seeded on that id for a stable,
+    # per-playtest header. Editing does not re-ping the roles.
+    lines = await build_announcement_message(user_id, user_id, description, code, roles)
+    message = await channel.send(content="\n".join(lines), allowed_mentions=mentions)
+    lines = await build_announcement_message(
+        user_id, message.id, description, code, roles
     )
+    await message.edit(content="\n".join(lines), allowed_mentions=mentions)
+    return message
 
 
 async def update_announcement(
@@ -73,7 +126,9 @@ async def update_announcement(
 ) -> None:
     """Edit the announcement to include the new details."""
 
-    lines = await build_announcement_message(user_id, description, code, roles)
+    lines = await build_announcement_message(
+        user_id, message.id, description, code, roles
+    )
     await message.edit(
         content="\n".join(lines),
         allowed_mentions=discord.AllowedMentions(roles=roles or False),
