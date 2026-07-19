@@ -234,6 +234,6 @@ def build_experience_embed(experience: Experience) -> discord.Embed:
     if experience.tags:
         embed.add_field(name="Tags", value=", ".join(experience.tags), inline=False)
     if experience.image:
-        embed.set_thumbnail(url=experience.image)
+        embed.set_image(url=experience.image)
     embed.set_footer(text="Experience details via gametools.network")
     return embed
