@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS playtests (
     id INTEGER PRIMARY KEY,
     user_id TEXT NOT NULL,
     message_id TEXT NOT NULL UNIQUE,
-    region TEXT NOT NULL,
+    regions TEXT NOT NULL,
     description TEXT NOT NULL,
     code TEXT NOT NULL
 );
@@ -96,8 +96,8 @@ class Playtest:
 
 
 async def set_playtest(
-    user_id: str,
-    message_id: str,
+    user_id: int,
+    message_id: int,
     regions: list[str],
     description: str,
     code: str,
@@ -107,28 +107,28 @@ async def set_playtest(
     async with aiosqlite.connect(_path()) as conn:
         await conn.execute(
             """
-            INSERT INTO playtests (user_id, message_id, region, description, code)
+            INSERT INTO playtests (user_id, message_id, regions, description, code)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(message_id) DO UPDATE SET
                 user_id = excluded.user_id,
-                region = excluded.region,
+                regions = excluded.regions,
                 description = excluded.description,
                 code = excluded.code
             """,
-            (user_id, message_id, json.dumps(regions), description, code),
+            (str(user_id), str(message_id), json.dumps(regions), description, code),
         )
         await conn.commit()
 
 
-async def get_playtest(message_id: str) -> Playtest | None:
+async def get_playtest(message_id: int) -> Playtest | None:
     """Return the playtest for an announcement message, or None if absent."""
     async with aiosqlite.connect(_path()) as conn:
         async with conn.execute(
             """
-            SELECT id, user_id, message_id, region, description, code
+            SELECT id, user_id, message_id, regions, description, code
             FROM playtests WHERE message_id = ?
             """,
-            (message_id,),
+            (str(message_id),),
         ) as cur:
             row = await cur.fetchone()
     if row is None:
