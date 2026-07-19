@@ -7,6 +7,7 @@ implement the "schedule" and "edit" submit flows respectively.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import discord
@@ -18,12 +19,21 @@ from ..announcements import (
     send_announcement,
     update_announcement,
 )
+from ..experience import post_experience_embed
 
 log = logging.getLogger(__name__)
 
 # Name of the slash command users run inside a thread to edit their playtest.
 # Defined in the cog; kept as a literal here to avoid a circular import.
 UPDATE_COMMAND_NAME = "update-playtest"
+
+background_tasks: set[asyncio.Task] = set()
+
+def spawn_task(coro) -> None:
+    """Run a coroutine as a tracked fire-and-forget background task."""
+    task = asyncio.create_task(coro)
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
 
 async def _command_mention(interaction: discord.Interaction, name: str) -> str:
@@ -139,7 +149,7 @@ class PlaytestModal(discord.ui.Modal):
         return (
             list(self.region_select.values),
             self.description_input.value.strip(),
-            self.code_input.value.strip(),
+            self.code_input.value.strip().upper(),
         )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
@@ -195,6 +205,11 @@ class NewPlaytestModal(PlaytestModal):
             description=description,
             code=code,
         )
+
+        # The experience lookup hits the network and can be slow, so run it after
+        # the scheduling flow has fully finished rather than blocking on_submit.
+        if code:
+            spawn_task(post_experience_embed(thread, code))
 
 
 class UpdatePlaytestModal(PlaytestModal):
