@@ -30,11 +30,6 @@ async def get_announcement_channel(guild: discord.Guild | None) -> TextChannel |
     return None
 
 
-async def get_announcement_message(
-    guild: discord.Guild | None, message_id: int
-) -> discord.Message | None: ...
-
-
 async def build_announcement_message(
     user_id: int,
     description: str,
