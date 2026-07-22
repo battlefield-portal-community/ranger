@@ -15,6 +15,8 @@ import discord
 from .... import db
 from ....config import load_regions
 from ..announcements import (
+    EXPERIENCE_CODE_MAX_LENGTH,
+    description_char_budget,
     get_announcement_channel,
     send_announcement,
     update_announcement,
@@ -77,18 +79,22 @@ class PlaytestModal(discord.ui.Modal):
         super().__init__(title=self.modal_title)
         self._regions = regions
 
+        # Cap the description so the assembled announcement can't exceed
+        # Discord's message limit once the header, code, regions and footer are
+        # added — otherwise the send/edit fails with a 400.
+        description_limit = description_char_budget(regions.values())
         self.description_input = discord.ui.TextInput(
             style=discord.TextStyle.paragraph,
             placeholder="What are we testing? Paste any video link here too.",
             required=True,
-            max_length=2000,
+            max_length=description_limit,
         )
 
         self.code_input = discord.ui.TextInput(
             style=discord.TextStyle.short,
             placeholder="e.g. AB12CD",
             required=False,
-            max_length=32,
+            max_length=EXPERIENCE_CODE_MAX_LENGTH,
         )
 
         options = [
@@ -109,7 +115,7 @@ class PlaytestModal(discord.ui.Modal):
         self.add_item(
             discord.ui.Label(
                 text="Playtest Description",
-                description="Markdown is supported.",
+                description=f"Markdown is supported. Max {description_limit} characters.",
                 component=self.description_input,
             )
         )

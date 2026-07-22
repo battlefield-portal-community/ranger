@@ -7,6 +7,7 @@ roles when a playtest is scheduled or later updated.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 import discord
 from discord import TextChannel
@@ -14,6 +15,17 @@ from discord import TextChannel
 from ...config import env
 
 log = logging.getLogger(__name__)
+
+# Discord rejects any message whose content exceeds this many characters.
+DISCORD_MESSAGE_LIMIT = 2000
+
+# Experience codes are always short (6 chars for a BF Portal code). We enforce
+# this on the modal input so the announcement's fixed overhead stays bounded.
+EXPERIENCE_CODE_MAX_LENGTH = 6
+
+# A Discord snowflake (user id) is a 64-bit int, so at most 19 digits; round up
+# to 20 for a little headroom.
+MAX_SNOWFLAKE_DIGITS = 20
 
 # Emoji and title pools for the announcement header. One of each is picked
 # independently but deterministically per playtest (seeded on the announcement
@@ -60,6 +72,44 @@ def pick_announcement_header(seed: int) -> str:
     emoji = ANNOUNCEMENT_EMOJIS[seed % len(ANNOUNCEMENT_EMOJIS)]
     title = ANNOUNCEMENT_TITLES[(seed // len(ANNOUNCEMENT_EMOJIS)) % len(ANNOUNCEMENT_TITLES)]
     return f"{emoji} {title}"
+
+
+# Longest possible "# <emoji> <title>" line. The pools are static, so this is
+# computed once at import.
+_MAX_HEADER_LINE = len("# ") + max(
+    len(pick_announcement_header(seed))
+    for seed in range(len(ANNOUNCEMENT_EMOJIS) * len(ANNOUNCEMENT_TITLES))
+)
+
+
+def announcement_overhead(role_ids: Iterable[int]) -> int:
+    """Worst-case length of everything in the announcement except the description.
+
+    Every line built by :func:`build_announcement_message` other than the
+    free-text description is bounded, so summing their maxima (plus joining
+    newlines) tells us how many characters are left for the description.
+    """
+    code_line = len("**Experience Code:** ``") + EXPERIENCE_CODE_MAX_LENGTH
+
+    mentions = [f"<@&{role_id}>" for role_id in role_ids]
+    regions_line = (
+        len("**Regions:** ")
+        + sum(len(m) for m in mentions)
+        + max(len(mentions) - 1, 0)  # single spaces between mentions
+    )
+
+    footer_line = len("-# scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
+
+    # 7 lines at most (header, blank, description, blank, code, regions, footer)
+    # joined by "\n".
+    newlines = 6
+
+    return _MAX_HEADER_LINE + code_line + regions_line + footer_line + newlines
+
+
+def description_char_budget(role_ids: Iterable[int]) -> int:
+    """How many description characters fit before the message exceeds the limit."""
+    return DISCORD_MESSAGE_LIMIT - announcement_overhead(role_ids)
 
 
 async def get_announcement_channel(guild: discord.Guild | None) -> TextChannel | None:
