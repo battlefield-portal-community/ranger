@@ -34,3 +34,9 @@ LEVEL_NAMES = {
     "MP_Plaza": "Cairo Bazaar",
     "MP_Aftermath_Portal": "Bellum1988's Operation Metro",
 }
+
+# Level ids the Portal SDK spells differently from the gametools API, as
+# SDK id -> the API id keying LEVEL_NAMES. Both name the same map.
+SDK_LEVEL_ID_ALIASES = {
+    "MP_Granite_TechCampus": "MP_Granite_TechCampus_Portal",
+}
