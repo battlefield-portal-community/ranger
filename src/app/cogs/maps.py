@@ -13,44 +13,22 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES, DISCORD_EMPTY_STRING
+from app.constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES, DISCORD_EMPTY_STRING
 
 log = logging.getLogger(__name__)
 
 
 COLUMNS = 3
+NAME_WIDTH = max(len(name) for name in LEVEL_NAMES.values())
 
-
-def build_maps_embed() -> discord.Embed:
-    """Render the map name -> level id listing as an embed.
-
-    Maps are spread across :data:`COLUMNS` inline fields so Discord lays them
-    out side by side. Chunking by column rather than one field per map keeps
-    the field count fixed, well clear of the 25-field limit however long the
-    map list grows.
-
-    Ids are shown the way the Portal SDK spells them, since that is what people
-    reading this need to paste into an experience.
-    """
+def build_maps_message() -> str:
     sdk_ids = {api_id: sdk_id for sdk_id, api_id in SDK_LEVEL_ID_ALIASES.items()}
-
-    entries = [
-        f"**{name}**\n`{sdk_ids.get(level, level)}`"
+    entries = [f"{DISCORD_EMPTY_STRING}", ":round_pushpin: Portal Map Names"]
+    entries.extend([
+        f"- **{name}** - `{sdk_ids.get(level, level)}`"
         for level, name in sorted(LEVEL_NAMES.items(), key=lambda item: item[1].lower())
-    ]
-
-    embed = discord.Embed(title="🗺️ Portal Map Names", color=discord.Color.blurple())
-
-    # Ceiling division so the last column is the short one, not an extra one.
-    per_column = -(-len(entries) // COLUMNS)
-    for start in range(0, len(entries), per_column):
-        embed.add_field(
-            name=DISCORD_EMPTY_STRING,
-            value="\n".join(entries[start : start + per_column]),
-        )
-
-    embed.set_footer(text=f"{len(entries)} maps")
-    return embed
+    ])
+    return "\n".join(entries)
 
 
 class MapsCog(commands.Cog):
@@ -60,11 +38,21 @@ class MapsCog(commands.Cog):
     @app_commands.command(
         name="maps", description="List Portal map names and their level ids"
     )
-    async def maps(self, interaction: discord.Interaction) -> None:
+    @app_commands.rename(post_in_channel="post-in-channel")
+    @app_commands.describe(
+        post_in_channel="Should the map list be posted in the channel?"
+    )
+    async def maps(
+        self, interaction: discord.Interaction, post_in_channel: bool = False
+    ) -> None:
         await interaction.response.send_message(
-            embed=build_maps_embed(), ephemeral=True
+            build_maps_message(), ephemeral=not post_in_channel
         )
 
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(MapsCog(bot))
+
+
+if __name__ == "__main__":
+    print(build_maps_message())
