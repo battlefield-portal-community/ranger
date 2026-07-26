@@ -23,7 +23,17 @@ build-backend = "uv_build"
 module-name = "app"
 module-root = "src"
 
+[tool.ruff]
+src = ["src"]
+
+[tool.ruff.lint]
+# Ruff defaults (E4, E7, E9, F) plus explicit unused-variable/import enforcement.
+select = ["E4", "E7", "E9", "F", "W"]
+# Only a bare underscore is an acceptable throwaway name; `_foo` still errors.
+dummy-variable-rgx = "^_$"
+
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.1",
     "ruff>=0.15.22",
 ]
