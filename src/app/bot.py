@@ -9,7 +9,9 @@ the cogs themselves so this module stays generic.
 from __future__ import annotations
 
 import logging
-import json, math, time
+import json
+import math
+import time
 from pathlib import Path
 
 import discord
@@ -35,13 +37,14 @@ class Ranger(commands.Bot):
     def write_health_state(self) -> None:
         """Write the current health state for the Docker health probe"""
 
+        latency = self.latency
         """Normalizing latency value"""
         if math.isnan(self.latency):
             latency = None
 
         state = {
             "timestamp": time.time(),
-            "latency": self.latency,
+            "latency": latency,
         }
 
         path = Path(env.BOT_SETTINGS.HEALTH_STATE_FILE)
