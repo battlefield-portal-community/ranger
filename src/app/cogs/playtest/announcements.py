@@ -70,7 +70,9 @@ ANNOUNCEMENT_TITLES = (
 def pick_announcement_header(seed: int) -> str:
     """Deterministically pick an emoji and title so it's stable across edits."""
     emoji = ANNOUNCEMENT_EMOJIS[seed % len(ANNOUNCEMENT_EMOJIS)]
-    title = ANNOUNCEMENT_TITLES[(seed // len(ANNOUNCEMENT_EMOJIS)) % len(ANNOUNCEMENT_TITLES)]
+    title = ANNOUNCEMENT_TITLES[
+        (seed // len(ANNOUNCEMENT_EMOJIS)) % len(ANNOUNCEMENT_TITLES)
+    ]
     return f"{emoji} {title}"
 
 

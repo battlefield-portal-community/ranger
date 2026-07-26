@@ -73,7 +73,9 @@ def _friendly_map_name(entry: dict) -> str | None:
 def _player_count(entry: dict) -> str | None:
     """Format a map's team capacities as "total (AvB)", e.g. "64 (32v32)"."""
     teams = ((entry.get("teamComposition") or {}).get("teams")) or []
-    caps = [int(t["capacity"]) for t in teams if isinstance(t, dict) and t.get("capacity")]
+    caps = [
+        int(t["capacity"]) for t in teams if isinstance(t, dict) and t.get("capacity")
+    ]
     if not caps:
         return None
     total = sum(caps)
@@ -142,7 +144,7 @@ async def fetch_experience(code: str) -> Experience | None:
             async with session.get(API_URL, params=params) as response:
                 response.raise_for_status()
                 payload = await response.json()
-    except (aiohttp.ClientError, TimeoutError):
+    except aiohttp.ClientError, TimeoutError:
         log.warning("Failed to fetch experience for code %r", code, exc_info=True)
         return None
 

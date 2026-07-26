@@ -55,9 +55,7 @@ class PlaytestCog(commands.Cog):
     @app_commands.command(
         name="update-playtest", description="Update the playtest menu message"
     )
-    async def update_playtest(
-        self, interaction: discord.Interaction
-    ) -> Message | None:
+    async def update_playtest(self, interaction: discord.Interaction) -> Message | None:
         try:
             channel = interaction.channel
             assert isinstance(channel, discord.Thread)

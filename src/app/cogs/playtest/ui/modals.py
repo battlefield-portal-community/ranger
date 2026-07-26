@@ -31,6 +31,7 @@ UPDATE_COMMAND_NAME = "update-playtest"
 
 background_tasks: set[asyncio.Task] = set()
 
+
 def spawn_task(coro) -> None:
     """Run a coroutine as a tracked fire-and-forget background task."""
     task = asyncio.create_task(coro)
@@ -273,9 +274,7 @@ class UpdatePlaytestModal(PlaytestModal):
             code=code,
         )
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
-        await interaction.followup.send(
-            f"✅ Playtest updated!{note}", ephemeral=True
-        )
+        await interaction.followup.send(f"✅ Playtest updated!{note}", ephemeral=True)
 
 
 def build_playtest_modal(saved: list[str]) -> NewPlaytestModal:
