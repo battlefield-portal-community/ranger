@@ -28,6 +28,9 @@ def build_maps_message() -> str:
         f"- **{name}** - `{sdk_ids.get(level, level)}`"
         for level, name in sorted(LEVEL_NAMES.items(), key=lambda item: item[1].lower())
     ])
+    entries.append(
+        "-# Also see : https://discord.com/channels/870246147455877181/1426307982580256821"
+    )
     return "\n".join(entries)
 
 
