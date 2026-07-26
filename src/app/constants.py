@@ -6,6 +6,8 @@ one cog and are imported by whichever features need them.
 
 from __future__ import annotations
 
+DISCORD_EMPTY_STRING = "​"
+
 # Level id -> display name. Used as a fallback when the gametools API returns
 # the raw level id (e.g. "MP_Aftermath_Portal") instead of a friendly map name.
 LEVEL_NAMES = {

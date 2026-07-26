@@ -13,42 +13,43 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES
+from ..constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES, DISCORD_EMPTY_STRING
 
 log = logging.getLogger(__name__)
 
 
+COLUMNS = 3
+
+
 def build_maps_embed() -> discord.Embed:
-    """Render the map name -> level id table as an embed.
+    """Render the map name -> level id listing as an embed.
 
-    The whole table goes in the embed description as one code block. At ~60
-    characters a row it stays well under Discord's 4096-character description
-    limit; if the map list ever grows several times over, this needs paging.
+    Maps are spread across :data:`COLUMNS` inline fields so Discord lays them
+    out side by side. Chunking by column rather than one field per map keeps
+    the field count fixed, well clear of the 25-field limit however long the
+    map list grows.
 
-    Ids the Portal SDK spells differently are marked with ``*`` and explained
-    underneath, so the table itself shows one id per map.
+    Ids are shown the way the Portal SDK spells them, since that is what people
+    reading this need to paste into an experience.
     """
-    sdk_aliases = {api_id: sdk_id for sdk_id, api_id in SDK_LEVEL_ID_ALIASES.items()}
+    sdk_ids = {api_id: sdk_id for sdk_id, api_id in SDK_LEVEL_ID_ALIASES.items()}
 
-    rows = sorted(LEVEL_NAMES.items(), key=lambda item: item[1].lower())
-    width = max(len(name) for _, name in rows)
-    table = "\n".join(
-        f"{name:<{width}}  {level}{' *' if level in sdk_aliases else ''}"
-        for level, name in rows
-    )
+    entries = [
+        f"**{name}**\n`{sdk_ids.get(level, level)}`"
+        for level, name in sorted(LEVEL_NAMES.items(), key=lambda item: item[1].lower())
+    ]
 
-    # A bare "*" would start a markdown bullet, so the marker is inline code.
-    notes = "\n".join(
-        f"`*` `{api_id}` is `{sdk_id}` in the Portal SDK — both are the same map."
-        for api_id, sdk_id in sdk_aliases.items()
-    )
+    embed = discord.Embed(title="🗺️ Portal Map Names", color=discord.Color.blurple())
 
-    embed = discord.Embed(
-        title="🗺️ Portal Map Names",
-        description=f"```\n{table}\n```\n{notes}" if notes else f"```\n{table}\n```",
-        color=discord.Color.blurple(),
-    )
-    embed.set_footer(text=f"{len(rows)} maps")
+    # Ceiling division so the last column is the short one, not an extra one.
+    per_column = -(-len(entries) // COLUMNS)
+    for start in range(0, len(entries), per_column):
+        embed.add_field(
+            name=DISCORD_EMPTY_STRING,
+            value="\n".join(entries[start : start + per_column]),
+        )
+
+    embed.set_footer(text=f"{len(entries)} maps")
     return embed
 
 
