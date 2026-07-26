@@ -13,39 +13,12 @@ import logging
 import aiohttp
 import discord
 
+from ...constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES
+
 log = logging.getLogger(__name__)
 
 API_URL = "https://api.gametools.network/bf6/shared_playground/"
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=10)
-
-# Level id -> display name. Used as a fallback when the API returns the raw
-# level id (e.g. "MP_Aftermath_Portal") instead of a friendly map name.
-LEVEL_NAMES = {
-    "MP_Abbasid": "Siege of Cairo",
-    "MP_Aftermath": "Empire State",
-    "MP_Badlands": "Blackwell Fields",
-    "MP_Battery": "Iberian Offensive",
-    "MP_Capstone": "Liberation Peak",
-    "MP_Contaminated": "Contaminated",
-    "MP_Dumbo": "Manhattan Bridge",
-    "MP_Eastwood": "Eastwood",
-    "MP_FireStorm": "Operation Firestorm",
-    "MP_Limestone": "Saints Quarter",
-    "MP_Outskirts": "New Sobek City",
-    "MP_Tungsten": "Mirak Valley",
-    "MP_Granite_ClubHouse_Portal": "Golf Course",
-    "MP_Granite_TechCampus_Portal": "Defense Nexus",
-    "MP_Granite_MainStreet_Portal": "Downtown",
-    "MP_Granite_Marina_Portal": "Marina",
-    "MP_Portal_Sand": "Portal Sandbox",
-    "MP_Granite_MilitaryRnD_Portal": "Area 22B",
-    "MP_Granite_MilitaryStorage_Portal": "Redline Storage",
-    "MP_Granite_Underground_Portal": "Complex 3",
-    "MP_Subsurface": "Hagental Base",
-    "MP_GolmudRailway": "Railway to Golmud",
-    "MP_Plaza": "Cairo Bazaar",
-    "MP_Aftermath_Portal": "Bellum1988's Operation Metro",
-}
 
 
 class Experience:
@@ -87,16 +60,22 @@ def _friendly_map_name(entry: dict) -> str | None:
 
     Our curated :data:`LEVEL_NAMES` is the source of truth; fall back to the
     API's ``mapname`` (or the raw level id) only for ids we don't have.
+
+    Ids are normalised through :data:`SDK_LEVEL_ID_ALIASES` first, so a map
+    still resolves if it arrives spelled the way the Portal SDK spells it.
     """
     level = (entry.get("levelName") or "").strip()
     mapname = (entry.get("mapname") or "").strip()
-    return LEVEL_NAMES.get(level) or mapname or level or None
+    level_id = SDK_LEVEL_ID_ALIASES.get(level, level)
+    return LEVEL_NAMES.get(level_id) or mapname or level or None
 
 
 def _player_count(entry: dict) -> str | None:
     """Format a map's team capacities as "total (AvB)", e.g. "64 (32v32)"."""
     teams = ((entry.get("teamComposition") or {}).get("teams")) or []
-    caps = [int(t["capacity"]) for t in teams if isinstance(t, dict) and t.get("capacity")]
+    caps = [
+        int(t["capacity"]) for t in teams if isinstance(t, dict) and t.get("capacity")
+    ]
     if not caps:
         return None
     total = sum(caps)
@@ -165,7 +144,7 @@ async def fetch_experience(code: str) -> Experience | None:
             async with session.get(API_URL, params=params) as response:
                 response.raise_for_status()
                 payload = await response.json()
-    except (aiohttp.ClientError, TimeoutError):
+    except aiohttp.ClientError, TimeoutError:
         log.warning("Failed to fetch experience for code %r", code, exc_info=True)
         return None
 
