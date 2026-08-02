@@ -223,11 +223,15 @@ async def sync_playtest_event(
         await event.edit(
             start_time=datetime.fromtimestamp(new_scheduled_at, tz=timezone.utc)
         )
+    # Keep tracking the event when the move fails: its card keeps the stale start
+    # time, but the scheduler keys off the row's scheduled_at and still starts and
+    # ends it at the new one — better than orphaning a live event and creating a
+    # duplicate on the next update.
     except discord.Forbidden:
         log.warning("Missing Manage Events permission to move event %s", event.id)
-        return None, None
+        return old_event_id, playtest.ends_at
     except discord.HTTPException:
         log.exception("Failed to reschedule playtest event %s", event.id)
-        return None, None
+        return old_event_id, playtest.ends_at
 
     return str(event.id), new_scheduled_at + default_duration
