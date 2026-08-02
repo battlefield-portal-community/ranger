@@ -48,6 +48,10 @@ class PlaytestCogSettings(BaseModel):
     REGIONS_CONFIG_DIR: str = "config"
     # Role ids allowed to update a playtest (moderators/admins).
     MOD_ROLE_IDS: list[int] = Field(default_factory=list)
+    # Voice channel hosting playtest scheduled events (feature disabled when unset).
+    EVENT_VOICE_CHANNEL_ID: int | None = None
+    EVENT_DEFAULT_DURATION_MINUTES: int = 120
+    EVENT_END_WARN_MINUTES: int = 15
 
 
 class Settings(BaseSettings):
