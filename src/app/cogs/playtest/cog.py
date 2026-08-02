@@ -121,6 +121,62 @@ class PlaytestCog(commands.Cog):
             UpdatePlaytestModal.from_playtest(playtest, message)
         )
 
+    @app_commands.command(
+        name="extend-playtest", description="Extend the playtest event's end time"
+    )
+    @app_commands.describe(minutes="How many minutes to add (default 30)")
+    async def extend_playtest(
+        self,
+        interaction: discord.Interaction,
+        minutes: app_commands.Range[int, 5, 480] = 30,
+    ) -> None:
+        try:
+            channel = interaction.channel
+            assert isinstance(channel, discord.Thread)
+        except AssertionError:
+            log.info("interaction was not sent in a thread")
+            await interaction.response.send_message(
+                "This command can only be used in a thread", ephemeral=True
+            )
+            return
+
+        playtest = await db.get_playtest(channel.id)
+        if playtest is None:
+            await interaction.response.send_message(
+                "This thread is not a playtest thread", ephemeral=True
+            )
+            return
+
+        # Only the original scheduler or a moderator may extend the playtest.
+        is_scheduler = str(interaction.user.id) == playtest.user_id
+        if not (is_scheduler or self.is_moderator(interaction.user)):
+            await interaction.response.send_message(
+                "Only the playtest's scheduler or a moderator can extend it",
+                ephemeral=True,
+            )
+            return
+
+        if playtest.event_id is None or playtest.ends_at is None:
+            await interaction.response.send_message(
+                "This playtest has no live event to extend.", ephemeral=True
+            )
+            return
+
+        # Extending an already-overdue event still buys the full window.
+        new_ends = max(playtest.ends_at, int(time.time())) + minutes * 60
+        await db.update_playtest_event(
+            channel.id,
+            event_id=playtest.event_id,
+            ends_at=new_ends,
+            # Reset so a fresh warning fires before the new end time.
+            end_warned=False,
+        )
+
+        await interaction.response.send_message(
+            f"⏱️ Playtest extended by {minutes} min — "
+            f"now ends <t:{new_ends}:F> (<t:{new_ends}:R>)."
+        )
+
     async def ensure_menu_message(self) -> None:
         """Post the menu message once, or edit the existing one on restart."""
         channel_id = env.PLAYTEST_COG_SETTINGS.MENU_CHANNEL_ID
