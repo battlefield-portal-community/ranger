@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import discord
 from discord import app_commands, TextChannel, Message
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from ... import db, permissions
 from ...config import env
+from . import events
 from .announcements import get_announcement_channel
 from .ui import PlaytestMenuView, UpdatePlaytestModal, build_playtest_modal
 
@@ -26,6 +28,10 @@ class PlaytestCog(commands.Cog):
     async def cog_load(self) -> None:
         # Re-register the persistent view so the button keeps working after a restart.
         self.bot.add_view(PlaytestMenuView())
+        self.event_scheduler.start()
+
+    async def cog_unload(self) -> None:
+        self.event_scheduler.cancel()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -146,6 +152,109 @@ class PlaytestCog(commands.Cog):
         message = await channel.send(embed=embed, view=view)
         await db.set_state(MENU_STATE_KEY, str(message.id))
         log.info("Posted new playtest menu message %s", message.id)
+
+    @staticmethod
+    async def resolve_playtest_thread(
+        guild: discord.Guild, message_id: str
+    ) -> discord.Thread | None:
+        """Resolve a playtest thread, which shares its id with its announcement."""
+        thread = guild.get_thread(int(message_id))
+        if thread is not None:
+            return thread
+        try:
+            channel = await guild.fetch_channel(int(message_id))
+        except discord.HTTPException:
+            log.exception("Couldn't fetch playtest thread %s", message_id)
+            return None
+        return channel if isinstance(channel, discord.Thread) else None
+
+    @tasks.loop(seconds=60)
+    async def event_scheduler(self) -> None:
+        """Start, warn about and end playtest events as their times come around."""
+        now = int(time.time())
+        rows = await db.get_playtests_with_events()
+        if not rows:
+            return
+
+        guild = self.bot.get_guild(env.BOT_SETTINGS.GUILD_ID)
+        if guild is None:
+            return
+
+        for row in rows:
+            try:
+                await self.advance_playtest_event(guild, row, now)
+            # A status transition that Discord rejects raises ValueError, and any
+            # single row's failure must not take down the rest of the tick.
+            except ValueError:
+                log.warning(
+                    "Skipping playtest %s: event %s rejected the transition",
+                    row.message_id,
+                    row.event_id,
+                )
+            except Exception:
+                log.exception("Failed to advance playtest event %s", row.message_id)
+
+    @event_scheduler.before_loop
+    async def _wait_ready(self) -> None:
+        await self.bot.wait_until_ready()
+
+    async def advance_playtest_event(
+        self, guild: discord.Guild, row: db.Playtest, now: int
+    ) -> None:
+        """Move one playtest's event through start, end warning and end."""
+        message_id = int(row.message_id)
+        event = await events.fetch_event(guild, row.event_id)
+
+        # Gone, or a moderator already ended or cancelled it by hand.
+        if event is None or event.status in (
+            discord.EventStatus.completed,
+            discord.EventStatus.cancelled,
+        ):
+            await db.update_playtest_event(message_id, event_id=None, ends_at=None)
+            return
+
+        if (
+            event.status is discord.EventStatus.scheduled
+            and row.scheduled_at is not None
+            and row.scheduled_at <= now
+        ):
+            # The bot was down for the whole window, so there is nothing left to run.
+            if row.ends_at is not None and row.ends_at <= now:
+                await events.cancel_event(event)
+                await db.update_playtest_event(message_id, event_id=None, ends_at=None)
+            else:
+                await event.start()
+            return
+
+        if event.status is not discord.EventStatus.active or row.ends_at is None:
+            return
+
+        if now >= row.ends_at:
+            await event.end()
+            await db.update_playtest_event(message_id, event_id=None, ends_at=None)
+            thread = await self.resolve_playtest_thread(guild, row.message_id)
+            if thread is not None:
+                try:
+                    await thread.send("✅ Playtest event ended.")
+                except discord.HTTPException:
+                    log.exception("Failed to post the end notice in %s", row.message_id)
+            return
+
+        warn_at = row.ends_at - env.PLAYTEST_COG_SETTINGS.EVENT_END_WARN_MINUTES * 60
+        if row.end_warned or now < warn_at:
+            return
+
+        thread = await self.resolve_playtest_thread(guild, row.message_id)
+        if thread is None:
+            log.warning("No thread to warn for playtest %s", row.message_id)
+            return
+
+        await thread.send(
+            f"<@{row.user_id}> ⏰ this playtest's event ends <t:{row.ends_at}:R>. "
+            "Use /extend-playtest to keep it going."
+        )
+        # Flagged only once the ping lands, so a failed send retries next tick.
+        await db.mark_end_warned(message_id)
 
 
 async def setup(bot: commands.Bot) -> None:
