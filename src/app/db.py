@@ -7,6 +7,7 @@ Holds:
   message so it can be looked up and edited later.
 - ``bot_state``: small key/value state, currently the posted menu message id so we
   edit it on restart instead of posting a duplicate.
+- ``maps``: the curated level id -> display name list, maintained from Discord.
 
 The database path is taken from :data:`app.config.env` and a module-level path is
 cached by :func:`init_db`, so the accessor helpers can be called without passing
@@ -43,6 +44,15 @@ CREATE TABLE IF NOT EXISTS playtests (
 CREATE TABLE IF NOT EXISTS bot_state (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS maps (
+    level_id TEXT PRIMARY KEY,
+    name     TEXT NOT NULL,
+    -- The Portal SDK spelling, when it differs from the API one, so a map still
+    -- resolves whichever spelling arrives. NULL for most maps.
+    sdk_id   TEXT UNIQUE,
+    -- The season a map was added in, when it is known.
+    season   INTEGER
 );
 """
 
@@ -99,6 +109,16 @@ async def set_user_regions(user_id: int, regions: list[str]) -> None:
             (user_id, json.dumps(regions)),
         )
         await conn.commit()
+
+
+@dataclass(frozen=True)
+class MapEntry:
+    """A curated map as stored in the ``maps`` table."""
+
+    level_id: str
+    name: str
+    sdk_id: str | None
+    season: int | None
 
 
 @dataclass(frozen=True)
@@ -248,5 +268,63 @@ async def set_state(key: str, value: str) -> None:
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
             """,
             (key, value),
+        )
+        await conn.commit()
+
+
+_MAP_COLUMNS = "level_id, name, sdk_id, season"
+
+
+def _row_to_map(row: tuple) -> MapEntry:
+    return MapEntry(*row)
+
+
+async def list_maps() -> list[MapEntry]:
+    """Return every curated map."""
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(f"SELECT {_MAP_COLUMNS} FROM maps") as cur:
+            rows = await cur.fetchall()
+    return [_row_to_map(row) for row in rows]
+
+
+async def upsert_map(
+    level_id: str,
+    name: str,
+    sdk_id: str | None = None,
+    season: int | None = None,
+) -> None:
+    """Insert a map, or overwrite the stored row with the same level id."""
+    async with aiosqlite.connect(_path()) as conn:
+        await conn.execute(
+            """
+            INSERT INTO maps (level_id, name, sdk_id, season) VALUES (?, ?, ?, ?)
+            ON CONFLICT(level_id) DO UPDATE SET
+                name = excluded.name,
+                sdk_id = excluded.sdk_id,
+                season = excluded.season
+            """,
+            (level_id, name, sdk_id, season),
+        )
+        await conn.commit()
+
+
+async def delete_map(level_id: str) -> bool:
+    """Remove a map, reporting whether a row was deleted."""
+    async with aiosqlite.connect(_path()) as conn:
+        cur = await conn.execute("DELETE FROM maps WHERE level_id = ?", (level_id,))
+        deleted = cur.rowcount > 0
+        await conn.commit()
+    return deleted
+
+
+async def seed_maps(entries: list[MapEntry]) -> None:
+    """Insert maps that aren't stored yet, leaving existing rows untouched."""
+    async with aiosqlite.connect(_path()) as conn:
+        await conn.executemany(
+            """
+            INSERT OR IGNORE INTO maps (level_id, name, sdk_id, season)
+            VALUES (?, ?, ?, ?)
+            """,
+            [(e.level_id, e.name, e.sdk_id, e.season) for e in entries],
         )
         await conn.commit()
