@@ -17,6 +17,7 @@ from pathlib import Path
 import discord
 from discord.ext import commands, tasks
 
+from . import maps_data
 from .config import env
 from .db import init_db
 
@@ -62,6 +63,12 @@ class Ranger(commands.Bot):
 
     async def setup_hook(self) -> None:
         await init_db(env.BOT_SETTINGS.DB_PATH)
+        try:
+            # Map names are resolved synchronously while rendering playtest
+            # announcements, so the cache has to be warm before any cog runs.
+            await maps_data.load()
+        except Exception:
+            log.exception("Failed to load the curated map list")
         await self._load_cogs()
 
         guild = discord.Object(id=env.BOT_SETTINGS.GUILD_ID)
