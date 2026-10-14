@@ -13,7 +13,7 @@ import logging
 import aiohttp
 import discord
 
-from ...constants import LEVEL_NAMES, SDK_LEVEL_ID_ALIASES
+from ... import maps_data
 
 log = logging.getLogger(__name__)
 
@@ -58,16 +58,12 @@ def _first(seq: list | None) -> dict | None:
 def _friendly_map_name(entry: dict) -> str | None:
     """Resolve a map's display name.
 
-    Our curated :data:`LEVEL_NAMES` is the source of truth; fall back to the
-    API's ``mapname`` (or the raw level id) only for ids we don't have.
-
-    Ids are normalised through :data:`SDK_LEVEL_ID_ALIASES` first, so a map
-    still resolves if it arrives spelled the way the Portal SDK spells it.
+    The curated map list is the source of truth; fall back to the API's
+    ``mapname`` (or the raw level id) only for ids we don't have.
     """
     level = (entry.get("levelName") or "").strip()
     mapname = (entry.get("mapname") or "").strip()
-    level_id = SDK_LEVEL_ID_ALIASES.get(level, level)
-    return LEVEL_NAMES.get(level_id) or mapname or level or None
+    return maps_data.level_name(level) or mapname or level or None
 
 
 def _player_count(entry: dict) -> str | None:
