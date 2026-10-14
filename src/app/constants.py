@@ -1,15 +1,15 @@
-"""Static game reference data shared across cogs.
+"""Seed data for the curated map list.
 
-Values here are curated by hand rather than fetched, so they live outside any
-one cog and are imported by whichever features need them.
+Curated by hand rather than fetched. :mod:`app.maps_data` copies this into the
+``maps`` table on first run; after that the table is the source of truth and is
+edited from Discord.
 """
 
 from __future__ import annotations
 
 DISCORD_EMPTY_STRING = "​"
 
-# Level id -> display name. Used as a fallback when the gametools API returns
-# the raw level id (e.g. "MP_Aftermath_Portal") instead of a friendly map name.
+# Level id -> display name.
 LEVEL_NAMES = {
     "MP_Abbasid": "Siege of Cairo",
     "MP_Aftermath": "Empire State",
@@ -38,8 +38,9 @@ LEVEL_NAMES = {
 }
 
 # Level ids the Portal SDK spells differently from the gametools API, as
-# SDK id -> the API id keying LEVEL_NAMES. Both name the same map. The SDK
-# drops the "_Portal" suffix the API carries on the Granite maps.
+# SDK id -> the API id keying LEVEL_NAMES, seeded into the ``sdk_id`` column.
+# Both name the same map. The SDK drops the "_Portal" suffix the API carries on
+# the Granite maps.
 #
 # Deliberately not derived by stripping "_Portal": MP_Aftermath_Portal would
 # alias to MP_Aftermath, which is a different map (Empire State) that the API
