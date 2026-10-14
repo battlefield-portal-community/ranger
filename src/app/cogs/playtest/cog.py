@@ -8,7 +8,7 @@ import discord
 from discord import app_commands, TextChannel, Message
 from discord.ext import commands
 
-from ... import db
+from ... import db, permissions
 from ...config import env
 from .announcements import get_announcement_channel
 from .ui import PlaytestMenuView, UpdatePlaytestModal, build_playtest_modal
@@ -45,13 +45,6 @@ class PlaytestCog(commands.Cog):
         saved = await db.get_user_regions(interaction.user.id)
         await interaction.response.send_modal(build_playtest_modal(saved))
 
-    @staticmethod
-    def is_moderator(user: discord.User | discord.Member) -> bool:
-        """True if the user holds one of the configured moderator/admin roles."""
-        mod_role_ids = set(env.PLAYTEST_COG_SETTINGS.MOD_ROLE_IDS)
-        roles = getattr(user, "roles", [])
-        return any(role.id in mod_role_ids for role in roles)
-
     @app_commands.command(
         name="update-playtest", description="Update the playtest menu message"
     )
@@ -78,7 +71,7 @@ class PlaytestCog(commands.Cog):
 
         # Only the original scheduler or a moderator may update the playtest.
         is_scheduler = str(interaction.user.id) == playtest.user_id
-        if not (is_scheduler or self.is_moderator(interaction.user)):
+        if not (is_scheduler or permissions.is_moderator(interaction.user)):
             return await interaction.response.send_message(
                 "Only the playtest's scheduler or a moderator can update it",
                 ephemeral=True,
