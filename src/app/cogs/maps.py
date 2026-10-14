@@ -22,11 +22,14 @@ from app.constants import DISCORD_EMPTY_STRING
 log = logging.getLogger(__name__)
 
 
-def build_maps_message() -> str:
-    entries = [DISCORD_EMPTY_STRING, ":round_pushpin: Portal Map Names"]
+def build_maps_message(season: int | None = None) -> str:
+    heading = ":round_pushpin: Portal Map Names"
+    if season is not None:
+        heading = f"{heading} — Season {season}"
+    entries = [DISCORD_EMPTY_STRING, heading]
     entries.extend(
         f"- **{entry.name}** - `{entry.sdk_id or entry.level_id}`"
-        for entry in maps_data.entries()
+        for entry in maps_data.entries(season)
     )
     entries.append(
         "-# Also see : https://discord.com/channels/870246147455877181/1426307982580256821"
@@ -86,13 +89,20 @@ class MapsCog(commands.Cog):
     )
     @app_commands.rename(post_in_channel="post-in-channel")
     @app_commands.describe(
-        post_in_channel="Should the map list be posted in the channel?"
+        post_in_channel="Should the map list be posted in the channel?",
+        season="Only list maps added in this season",
     )
     async def maps(
-        self, interaction: discord.Interaction, post_in_channel: bool = False
+        self,
+        interaction: discord.Interaction,
+        post_in_channel: bool = False,
+        season: int | None = None,
     ) -> None:
+        problem = _season_problem(season)
+        if problem is not None:
+            return await interaction.response.send_message(problem, ephemeral=True)
         await interaction.response.send_message(
-            build_maps_message(), ephemeral=not post_in_channel
+            build_maps_message(season), ephemeral=not post_in_channel
         )
 
     map_group = app_commands.Group(
