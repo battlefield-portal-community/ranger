@@ -6,6 +6,7 @@ import logging
 
 from .bot import Ranger
 from .config import env
+from .tls import use_certifi
 
 
 def start() -> None:
@@ -13,6 +14,8 @@ def start() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
+    # Before any client exists, so every TLS connection in the process uses it.
+    use_certifi()
     bot = Ranger()
     logger = logging.getLogger(__name__)
     logger.info(f"Starting bot with config: {env.model_dump_json(indent=2)}")
