@@ -37,7 +37,7 @@ class FeedbackMenuView(discord.ui.View):
 
     @discord.ui.button(
         label="Report a Bug",
-        style=discord.ButtonStyle.danger,
+        style=discord.ButtonStyle.secondary,
         emoji="🐞",
         custom_id=BUG_BUTTON_ID,
     )
