@@ -36,6 +36,8 @@ filed and the thread's status in SQLite.
 
 - **Bug form:** Summary · What happens · Steps to reproduce · optional media.
 - **Feature form:** Summary · What you want · Why it helps · Example · optional media.
+- **Reporter credit:** the starter message ends with a small-type `Reported by
+  @reporter`; the game is carried by the applied tag, not repeated in the body.
 - **Tags at creation:** every post carries the game tag (`BF6`); a feature request
   also carries `feature-request`. The forums require a tag, so these are never empty.
 - **Status is the thread's own tag.** Staff change it with Discord's "Edit Tags";
