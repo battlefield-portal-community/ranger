@@ -10,7 +10,6 @@ dependencies = [
     "discord-py>=2.7.1",
     "aiosqlite>=0.20.0",
     "pydantic-settings>=2.5.0",
-    "certifi>=2026.10.23",
 ]
 
 [project.scripts]
