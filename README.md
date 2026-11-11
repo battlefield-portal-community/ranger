@@ -27,3 +27,54 @@ The behaviour can be configured through the following environment variables:
 | `BOT_SETTINGS__HEALTH_STATE_FILE` | `/tmp/ranger.health` | Path to the health state file. |
 | `BOT_SETTINGS__HEALTH_HEARTBEAT_INTERVAL` | `15` | Seconds between health state updates. |
 | `BOT_SETTINGS__HEALTH_STALE_THRESHOLD` | `45` | Maximum allowed age (in seconds) of the health state before the probe reports the container as unhealthy. |
+## Feedback Intake
+
+One channel (`📮・submit-feedback`) is the only way into the bug and feature forums:
+a reporter presses a button, fills a modal and nothing else. Ranger files the post
+in the right forum, applies the tags, and records who reported it, the body it
+filed and the thread's status in SQLite.
+
+- **Bug form:** Summary · What happens · Steps to reproduce · optional media.
+- **Feature form:** Summary · What you want · Why it helps · Example · optional media.
+- **Tags at creation:** every post carries the game tag (`BF6`); a feature request
+  also carries `feature-request`. The forums require a tag, so these are never empty.
+- **Status is the thread's own tag.** Staff change it with Discord's "Edit Tags";
+  `on_thread_update` mirrors the result into `feedback_posts.status`. Nothing acts on
+  it yet — the mirror exists so the later forum cleanup pass has history to query. A
+  retag made while the bot is offline is missed by design; the tags in Discord stay
+  the truth.
+- **Dedupe:** before filing, the report is searched (SQLite FTS5, no privileged
+  intents) against earlier posts. A likely duplicate offers *Open existing* or *File
+  anyway*; filing anyway is written to `feedback_events`.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FEEDBACK_COG_SETTINGS__MENU_CHANNEL_ID` | *(unset)* | Channel holding the intake message. The cog logs once and stays inert while it is unset, so an image can ship before the channel exists. |
+| `FEEDBACK_COG_SETTINGS__BUG_FORUM_ID` | `1403608614899421294` | Bug forum. |
+| `FEEDBACK_COG_SETTINGS__FEATURE_FORUM_ID` | `1006491137441276005` | Feature forum. |
+| `FEEDBACK_COG_SETTINGS__DEFAULT_GAME_TAG` | `BF6` | Game tag stamped on every post. |
+| `FEEDBACK_COG_SETTINGS__FEATURE_TAG` | `feature-request` | Tag marking a post as a feature request. |
+| `FEEDBACK_COG_SETTINGS__MAX_UPLOAD_FILES` | `5` | Upload slots offered in the form; Discord's own maximum is 10. |
+
+### Discord setup (manual, once)
+
+1. Create `📮・submit-feedback`, deny `Send Messages` for `@everyone` so only the
+   intake message lives there, and set `FEEDBACK_COG_SETTINGS__MENU_CHANNEL_ID`.
+2. Give the bot View Channel, Send Messages, Create Posts, Read Message History,
+   Attach Files and Embed Links in both forums and in the intake channel.
+   `Manage Threads` is not needed: the bot never edits a thread's tags.
+3. Check the forum tags. They are resolved by name, case-insensitively, and both
+   forums' real tags are logged at startup so a rename is visible instead of silent:
+   - bug forum: `BF6`, `Noted`, `Patched`, `Needs Info`, `Duplicate`, `Editor`,
+     `Scripts`, `Godot`, `Rules editor`;
+   - feature forum: `BF6`, `BF2042`, `feature-request`, `Noted`, `Added`,
+     `Needs Info`, `Duplicate`, `game-ui`, `logic-editor`, `godot`.
+
+   Two known holes: **`BF2042` is missing from the bug forum**, so a BF2042 bug can
+   only be tagged `BF6`, and there is **no `Working` or `Declined` tag in either
+   forum**, so those statuses never appear until someone creates them.
+4. Optional, to let the dedupe cover threads posted before this cog existed:
+   `python -m app.seed_feedback <discordchatexporter-export-dir>`. It is safe to
+   re-run; threads already stored are skipped.
