@@ -276,14 +276,14 @@ class FeedbackModal(discord.ui.Modal):
 
 
 class BugReportModal(FeedbackModal):
-    """The bug form: summary, what happens, steps, optional media."""
+    """The bug form: title, what happens, steps, optional media."""
 
     kind = "bug"
     modal_title = "Report a Bug"
 
 
 class FeatureRequestModal(FeedbackModal):
-    """The feature form: summary, want, why, example, optional media."""
+    """The feature form: title, want, why, example, optional media."""
 
     kind = "feature"
     modal_title = "Request a Feature"

@@ -36,7 +36,7 @@ class FormField:
     hint: str
     limit: int
     paragraph: bool = True
-    # The summary names the thread instead of appearing in the body.
+    # The title names the thread instead of appearing in the body.
     in_body: bool = True
 
 
@@ -44,8 +44,8 @@ FORMS: dict[str, tuple[FormField, ...]] = {
     "bug": (
         FormField(
             key="summary",
-            label="Summary",
-            hint="One sentence: it becomes the thread title.",
+            label="Title",
+            hint="One line: it becomes the thread title.",
             limit=100,
             paragraph=False,
             in_body=False,
@@ -66,8 +66,8 @@ FORMS: dict[str, tuple[FormField, ...]] = {
     "feature": (
         FormField(
             key="summary",
-            label="Summary",
-            hint="One sentence: it becomes the thread title.",
+            label="Title",
+            hint="One line: it becomes the thread title.",
             limit=100,
             paragraph=False,
             in_body=False,
