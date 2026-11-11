@@ -26,7 +26,6 @@ from pathlib import Path
 import discord
 
 from .config import FeedbackCogSettings, env
-from .tls import use_certifi
 
 log = logging.getLogger(__name__)
 
@@ -269,9 +268,6 @@ def main() -> None:
         parser.error("--dry-run writes nothing, so it cannot --env-file")
 
     logging.basicConfig(level=env.BOT_SETTINGS.LOG_LEVEL)
-    bundle = use_certifi()
-    if bundle:
-        print(f"= TLS: trusting certifi's CA bundle ({bundle})")
     if not env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value():
         raise SystemExit(
             "BOT_SETTINGS__DISCORD_TOKEN is empty: set it in the environment "
