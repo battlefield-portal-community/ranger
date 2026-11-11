@@ -289,7 +289,8 @@ class FeedbackModal(discord.ui.Modal):
             max_values=max(1, min(len(choices), MAX_APPLIED_TAGS - reserved)),
             required=False,
             options=[
-                discord.SelectOption(label=tag.name, value=str(tag.id))
+                # The forum's own emoji, so the option looks like the tag does.
+                discord.SelectOption(label=tag.name, value=str(tag.id), emoji=tag.emoji)
                 for tag in choices
             ],
         )

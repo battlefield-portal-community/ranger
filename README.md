@@ -38,10 +38,10 @@ filed and the thread's status in SQLite.
 - **Feature form:** Title · Your request · How it helps · Tags · optional media.
   The free-text fields say markdown is supported, because it reaches the post as-is,
   and a field left empty is left out of the filed body.
-- **Tags in the form.** The picker offers the forum's own tags minus the
-  moderator-only ones (Discord marks those `moderated`, and a reporter cannot apply
-  them) and minus the two the cog sets itself, so a post never carries a tag the
-  reporter could not have chosen. A thread takes at most five tags, so the picker
+- **Tags in the form.** The picker offers the forum's own tags, with their emoji, minus
+  the moderator-only ones (Discord marks those `moderated`, and a reporter cannot
+  apply them) and minus the two the cog sets itself, so a post never carries a tag
+  the reporter could not have chosen. A thread takes at most five tags, so the picker
   offers four on a bug form and three on a feature form, which spends two.
 - **Reporter credit:** the starter message ends with a small-type `Reported by
   @reporter`; the game is carried by the applied tag, not repeated in the body.
