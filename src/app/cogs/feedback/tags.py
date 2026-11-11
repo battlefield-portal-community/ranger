@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 OPEN = "open"
 
 # Status -> the tag names that mean it. ``working`` and ``declined`` have no tag in
-# either forum today; they stay in the vocabulary so creating those tags later is
+# the live forums today; they stay in the vocabulary so creating those tags later is
 # enough to make them live.
 STATUS_ALIASES: dict[str, frozenset[str]] = {
     "noted": frozenset({"noted"}),
@@ -31,6 +31,15 @@ STATUS_ALIASES: dict[str, frozenset[str]] = {
     "duplicate": frozenset({"duplicate", "dupe"}),
     "working": frozenset({"working", "in progress"}),
     "declined": frozenset({"declined", "wontfix", "won't do"}),
+}
+
+# The statuses each kind of post can reach. A bug is patched and a feature is added;
+# expecting an "Added" tag in the bug forum, or "Patched" in the feature forum, only
+# ever reports a hole that nobody would fill. The topic tag (``feature-request``) is
+# not a status: it is applied once, when the post is filed.
+STATUSES_BY_KIND: dict[str, tuple[str, ...]] = {
+    "bug": ("noted", "working", "patched", "needs-info", "duplicate", "declined"),
+    "feature": ("noted", "working", "added", "needs-info", "duplicate", "declined"),
 }
 
 # When a thread carries several status tags, the first match here wins: a closed
@@ -108,14 +117,17 @@ def feature_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
     return resolve(forum, feedback_settings.settings().FEATURE_TAG)
 
 
-def tag_report(forum: discord.ForumChannel) -> str:
-    """Describe a forum's real tags, so a rename shows up in the log."""
+def tag_report(forum: discord.ForumChannel, kind: str) -> str:
+    """Describe a forum's real tags, so a rename shows up in the log.
+
+    Only the statuses that ``kind`` of post can reach are reported missing.
+    """
     names = [tag.name for tag in forum.available_tags]
     present = {normalise(name) for name in names}
     missing = sorted(
         status
-        for status, aliases in STATUS_ALIASES.items()
-        if not present & {normalise(alias) for alias in aliases}
+        for status in STATUSES_BY_KIND[kind]
+        if not present & {normalise(alias) for alias in STATUS_ALIASES[status]}
     )
     return (
         f"Feedback tags in {forum.name!r}: {', '.join(names) or '(none)'}"

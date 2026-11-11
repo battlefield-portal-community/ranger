@@ -47,6 +47,12 @@ filed and the thread's status in SQLite.
   it yet — the mirror exists so the later forum cleanup pass has history to query. A
   retag made while the bot is offline is missed by design; the tags in Discord stay
   the truth.
+- **Statuses are per kind.** A bug goes `Noted` → `Working` → `Patched` (or
+  `Duplicate`, `Needs Info`, `Declined`); a feature goes `Noted` → `Working` →
+  `Added` (plus the same others). The startup log only reports the statuses that
+  forum's posts can reach, so it never asks the bug forum for an `Added` tag or the
+  feature forum for `Patched`. `feature-request` is a topic tag, applied once at
+  filing, not a status.
 - **Dedupe:** before filing, the report is searched (SQLite FTS5, no privileged
   intents) against earlier posts. A likely duplicate offers *Open existing* or *File
   anyway*; filing anyway is written to `feedback_events`.

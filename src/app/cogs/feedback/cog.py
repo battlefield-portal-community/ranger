@@ -93,10 +93,14 @@ class FeedbackCog(commands.Cog):
     def report_forum_tags(self) -> None:
         """Log each forum's real tags, so a rename is visible instead of silent."""
         config = feedback_settings.settings()
-        for forum_id in (config.BUG_FORUM_ID, config.FEATURE_FORUM_ID):
+        forums = (
+            ("bug", config.BUG_FORUM_ID),
+            ("feature", config.FEATURE_FORUM_ID),
+        )
+        for kind, forum_id in forums:
             forum = self.bot.get_channel(forum_id)
             if isinstance(forum, discord.ForumChannel):
-                log.info(tags.tag_report(forum))
+                log.info(tags.tag_report(forum, kind))
             else:
                 log.warning("Feedback forum %s is not in the channel cache", forum_id)
 
