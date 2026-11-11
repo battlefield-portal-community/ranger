@@ -115,6 +115,8 @@ class FeedbackCog(commands.Cog):
             description=(
                 "Press a button and fill in the form. I file your post in the right "
                 "forum with the right tags and answer with a link.\n"
+                "Search the forum first: there may already be an open bug report or "
+                "feature request for it.\n"
                 "A moderator replies in that thread, so keep an eye on it."
             ),
             color=discord.Color.blurple(),
