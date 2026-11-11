@@ -18,6 +18,12 @@ THREAD_NAME_LIMIT = 100
 # A Discord snowflake is a 64-bit int, so the reporter mention is at most 19 digits.
 MAX_SNOWFLAKE_DIGITS = 19
 
+# Discord prints the posting application's name inline with the first line of a
+# message, so a body starting on the first line is glued to "Ranger". A leading
+# empty line pushes it down; Discord trims whitespace, so the blank line is a
+# zero-width space, which it does not trim.
+_LEADING_BLANK = "\u200b\n"
+
 # Discord's subtext markdown, so the reporter credit reads as a footnote under the
 # report instead of competing with it.
 _SUBTEXT = "-# "
@@ -112,7 +118,7 @@ def _render(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
         if field.in_body
     ]
     sections.append(f"{_SUBTEXT}{_REPORTER_VERB} <@{reporter_id}>")
-    return "\n\n".join(sections)
+    return _LEADING_BLANK + "\n\n".join(sections)
 
 
 def body_overhead(kind: str) -> int:
