@@ -110,11 +110,14 @@ class FeedbackCog(commands.Cog):
             log.error("Feedback menu channel %s is not a text channel", channel_id)
             return
 
+        # on_ready is the only caller, so the bot already knows its own user.
+        bot_user = self.bot.user
+        mention = bot_user.mention if bot_user is not None else "This bot"
         embed = discord.Embed(
             title="📮 Submit Feedback",
             description=(
-                "Press a button and fill in the form. I file your post in the right "
-                "forum with the right tags and answer with a link.\n"
+                f"Press a button and fill in the form. {mention} will file your post "
+                "in the right forum with the right tags and answer with a link.\n"
                 "Search the forum first: there may already be an open bug report or "
                 "feature request for it.\n"
                 "A moderator replies in that thread, so keep an eye on it."
@@ -122,12 +125,15 @@ class FeedbackCog(commands.Cog):
             color=discord.Color.blurple(),
         )
         view = FeedbackMenuView()
+        # The bot names itself; nobody needs pinging, least of all itself, and the
+        # message is edited on every restart.
+        no_pings = discord.AllowedMentions.none()
 
         stored = await db.get_state(MENU_STATE_KEY)
         if stored:
             try:
                 message = await channel.fetch_message(int(stored))
-                await message.edit(embed=embed, view=view)
+                await message.edit(embed=embed, view=view, allowed_mentions=no_pings)
                 log.info("Refreshed the feedback menu message %s", stored)
                 return
             except discord.NotFound:
@@ -135,7 +141,7 @@ class FeedbackCog(commands.Cog):
                     "Stored feedback menu message %s is gone; posting a new one", stored
                 )
 
-        message = await channel.send(embed=embed, view=view)
+        message = await channel.send(embed=embed, view=view, allowed_mentions=no_pings)
         await db.set_state(MENU_STATE_KEY, str(message.id))
         log.info("Posted the feedback menu message %s", message.id)
 
