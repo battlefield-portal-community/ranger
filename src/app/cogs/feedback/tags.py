@@ -14,7 +14,7 @@ from collections.abc import Iterable
 
 import discord
 
-from ...config import FeedbackCogSettings, env
+from . import settings as feedback_settings
 
 log = logging.getLogger(__name__)
 
@@ -62,13 +62,6 @@ _ALIAS_TO_STATUS = {
 }
 
 
-def _settings() -> FeedbackCogSettings:
-    settings = env.FEEDBACK_COG_SETTINGS
-    if settings is None:
-        raise RuntimeError("the feedback cog settings are not configured")
-    return settings
-
-
 def status_from_tags(tags: Iterable[discord.ForumTag | str]) -> str:
     """Derive a status from the tags applied to a thread.
 
@@ -107,12 +100,12 @@ def resolve(forum: discord.ForumChannel, name: str) -> discord.ForumTag | None:
 
 def game_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
     """The tag every filed post carries (the game it was reported for)."""
-    return resolve(forum, _settings().DEFAULT_GAME_TAG)
+    return resolve(forum, feedback_settings.settings().DEFAULT_GAME_TAG)
 
 
 def feature_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
     """The tag marking a post as a feature request."""
-    return resolve(forum, _settings().FEATURE_TAG)
+    return resolve(forum, feedback_settings.settings().FEATURE_TAG)
 
 
 def tag_report(forum: discord.ForumChannel) -> str:

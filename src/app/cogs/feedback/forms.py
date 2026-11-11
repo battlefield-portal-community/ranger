@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...config import FeedbackCogSettings, env
+from . import settings as feedback_settings
 
 DISCORD_MESSAGE_LIMIT = 2000
 THREAD_NAME_LIMIT = 100
@@ -105,14 +105,11 @@ def field_limits(kind: str) -> dict[str, int]:
     return {field.key: field.limit for field in fields(kind)}
 
 
-def _settings() -> FeedbackCogSettings | None:
-    return env.FEEDBACK_COG_SETTINGS
-
-
 def default_game() -> str:
     """The game tag stamped on every post, used while settings are absent too."""
-    settings = _settings()
-    return "BF6" if settings is None else settings.DEFAULT_GAME_TAG
+    current = feedback_settings.configured()
+    # Mirrors the model default so an export can be seeded without the env block.
+    return "BF6" if current is None else current.DEFAULT_GAME_TAG
 
 
 def _render(
