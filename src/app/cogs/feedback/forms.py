@@ -4,7 +4,7 @@ A forum post's starter message is capped at 2000 characters, while a modal field
 allows 4000, so the modal's ``max_length`` values are derived here rather than
 guessed: the fixed part of the body is measured and the rest is split across the
 fields. Nothing is truncated, and :func:`build_body` refuses to build a body that
-would not fit — which is a configuration bug (a longer ``DEFAULT_GAME_TAG``), never
+would not fit — which is a configuration bug (the limits in :data:`FORMS`), never
 something a reporter typed.
 """
 
