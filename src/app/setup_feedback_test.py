@@ -153,9 +153,10 @@ async def require_tag_on(forum) -> None:
 
 async def provision(guild_id: int) -> dict[str, int]:
     """Create everything the cog needs, returning the three channel ids."""
-    client = discord.Client(intents=discord.Intents.none())
-    await client.login(env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value())
+    client = discord.Client(intents=discord.Intents.default())
     try:
+        # Inside the try: a failed login has already opened the HTTP session.
+        await client.login(env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value())
         guild = await client.fetch_guild(guild_id)
         print(f"Provisioning {guild.name!r} (id {guild.id})")
         channels = list(await guild.fetch_channels())
@@ -175,7 +176,17 @@ async def provision(guild_id: int) -> dict[str, int]:
             "FEATURE_FORUM_ID": feature_forum.id,
         }
     finally:
-        await client.close()
+        await close_client(client)
+
+
+async def close_client(client: discord.Client) -> None:
+    """Close the throwaway client, including the connector discord.py keeps."""
+    await client.close()
+    # discord.py hands its own connector to the session, and closing the session
+    # does not close it; aiohttp warns about that on shutdown if it is left open.
+    connector = getattr(client.http, "connector", None)
+    if connector is not None and not connector.closed:
+        await connector.close()
 
 
 def write_env_file(path: Path, values: dict[str, int]) -> None:
@@ -213,6 +224,11 @@ def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=env.BOT_SETTINGS.LOG_LEVEL)
+    if not env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value():
+        raise SystemExit(
+            "BOT_SETTINGS__DISCORD_TOKEN is empty: set it in the environment "
+            "(or .env) before provisioning."
+        )
     if env.BOT_SETTINGS.GUILD_ID != args.guild_id:
         print(
             f"! BOT_SETTINGS__GUILD_ID is {env.BOT_SETTINGS.GUILD_ID}, not "
@@ -220,7 +236,25 @@ def main() -> None:
             "intake message will belong to the wrong guild."
         )
 
-    values = asyncio.run(provision(args.guild_id))
+    try:
+        values = asyncio.run(provision(args.guild_id))
+    except discord.LoginFailure:
+        raise SystemExit(
+            "Discord rejected the bot token (BOT_SETTINGS__DISCORD_TOKEN)."
+        )
+    except discord.Forbidden:
+        raise SystemExit(
+            "The bot is not allowed to do that: it needs Administrator (or at "
+            "least Manage Channels) in the test server."
+        )
+    except discord.NotFound:
+        raise SystemExit(
+            f"Guild {args.guild_id} was not found, or the bot is not a member of it."
+        )
+    except discord.HTTPException as exc:
+        raise SystemExit(f"Discord returned an error: {exc}")
+    except OSError as exc:
+        raise SystemExit(f"Could not reach Discord: {exc}")
 
     print("\nEnvironment for the bot:")
     for field, key in ENV_KEYS:
