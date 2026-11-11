@@ -61,7 +61,6 @@ class FeedbackCogSettings(BaseModel):
     BUG_FORUM_ID: int = Field(default=1403608614899421294)
     FEATURE_FORUM_ID: int = Field(default=1006491137441276005)
     DEFAULT_GAME_TAG: str = Field(default="BF6")
-    FEATURE_TAG: str = Field(default="feature-request")
     # Clamped to Discord's own maximum of 10 files per upload.
     MAX_UPLOAD_FILES: int = Field(default=5)
 
