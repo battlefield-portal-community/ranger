@@ -7,6 +7,11 @@ starts the bot with them::
 
     python -m app.setup_feedback_test --guild-id <test server id> --run
 
+``--dry-run`` reports what would be created, tagged or edited and writes nothing,
+which is the way to look before touching a server that already has content::
+
+    python -m app.setup_feedback_test --guild-id <test server id> --dry-run
+
 The bot needs Administrator in the test server: it has to create channels, edit
 forum tags and post the intake message. Nothing here deletes anything.
 """
@@ -78,21 +83,32 @@ def _find(channels: list, name: str, kind: discord.ChannelType):
     return None
 
 
-async def ensure_category(guild: discord.Guild, channels: list):
+async def ensure_category(guild: discord.Guild, channels: list, dry_run: bool):
     category = _find(channels, CATEGORY_NAME, discord.ChannelType.category)
     if category is not None:
         print(f"= category {CATEGORY_NAME!r} already exists")
         return category
+    if dry_run:
+        print(f"+ would create category {CATEGORY_NAME!r}")
+        return None
     category = await guild.create_category(CATEGORY_NAME, reason=REASON)
     print(f"+ created category {CATEGORY_NAME!r}")
     return category
 
 
 async def ensure_forum(
-    guild, channels: list, name: str, tag_names: tuple[str, ...], category
+    guild,
+    channels: list,
+    name: str,
+    tag_names: tuple[str, ...],
+    category,
+    dry_run: bool,
 ):
     forum = _find(channels, name, discord.ChannelType.forum)
     if forum is None:
+        if dry_run:
+            print(f"+ would create forum #{name} with {len(tag_names)} tags")
+            return None
         forum = await guild.create_forum(
             name,
             category=category,
@@ -106,6 +122,9 @@ async def ensure_forum(
     present = {tag.name.casefold() for tag in forum.available_tags}
     missing = [tag for tag in tag_names if tag.casefold() not in present]
     if missing:
+        if dry_run:
+            print(f"+ would add tags to #{name}: {', '.join(missing)}")
+            return forum
         await forum.edit(
             available_tags=[
                 *forum.available_tags,
@@ -119,11 +138,14 @@ async def ensure_forum(
     return forum
 
 
-async def ensure_intake(guild, channels: list, category):
+async def ensure_intake(guild, channels: list, category, dry_run: bool):
     channel = _find(channels, INTAKE_CHANNEL_NAME, discord.ChannelType.text)
     if channel is not None:
         print(f"= channel {INTAKE_CHANNEL_NAME!r} already exists")
         return channel
+    if dry_run:
+        print(f"+ would create channel {INTAKE_CHANNEL_NAME!r} with @everyone muted")
+        return None
     channel = await guild.create_text_channel(
         INTAKE_CHANNEL_NAME,
         category=category,
@@ -143,38 +165,50 @@ async def ensure_intake(guild, channels: list, category):
     return channel
 
 
-async def require_tag_on(forum) -> None:
+async def require_tag_on(forum, dry_run: bool) -> None:
     """Match the live bug forum, where a post without a tag is rejected."""
+    if forum is None:
+        # A dry run on a server that has no bug forum yet: the new forum is
+        # created with the flag, so there is nothing to report.
+        return
     if forum.flags.require_tag:
         print(f"= #{forum.name} already requires a tag")
+        return
+    if dry_run:
+        print(f"+ would make #{forum.name} require a tag")
         return
     await forum.edit(require_tag=True, reason=REASON)
     print(f"= #{forum.name} now requires a tag")
 
 
-async def provision(guild_id: int) -> dict[str, int]:
-    """Create everything the cog needs, returning the three channel ids."""
+async def provision(guild_id: int, dry_run: bool) -> dict[str, int | None]:
+    """Create everything the cog needs, returning the three channel ids.
+
+    A dry run returns None for anything that does not exist yet, because nothing
+    gets an id without being created.
+    """
     client = discord.Client(intents=discord.Intents.default())
     try:
         # Inside the try: a failed login has already opened the HTTP session.
         await client.login(env.BOT_SETTINGS.DISCORD_TOKEN.get_secret_value())
         guild = await client.fetch_guild(guild_id)
-        print(f"Provisioning {guild.name!r} (id {guild.id})")
+        suffix = " — dry run, nothing will be changed" if dry_run else ""
+        print(f"Provisioning {guild.name!r} (id {guild.id}){suffix}")
         channels = list(await guild.fetch_channels())
-        category = await ensure_category(guild, channels)
+        category = await ensure_category(guild, channels, dry_run)
 
         bug_forum = await ensure_forum(
-            guild, channels, BUG_FORUM_NAME, BUG_TAGS, category
+            guild, channels, BUG_FORUM_NAME, BUG_TAGS, category, dry_run
         )
-        await require_tag_on(bug_forum)
+        await require_tag_on(bug_forum, dry_run)
         feature_forum = await ensure_forum(
-            guild, channels, FEATURE_FORUM_NAME, FEATURE_TAGS, category
+            guild, channels, FEATURE_FORUM_NAME, FEATURE_TAGS, category, dry_run
         )
-        intake = await ensure_intake(guild, channels, category)
+        intake = await ensure_intake(guild, channels, category, dry_run)
         return {
-            "MENU_CHANNEL_ID": intake.id,
-            "BUG_FORUM_ID": bug_forum.id,
-            "FEATURE_FORUM_ID": feature_forum.id,
+            "MENU_CHANNEL_ID": None if intake is None else intake.id,
+            "BUG_FORUM_ID": None if bug_forum is None else bug_forum.id,
+            "FEATURE_FORUM_ID": None if feature_forum is None else feature_forum.id,
         }
     finally:
         await close_client(client)
@@ -222,7 +256,17 @@ def main() -> None:
         action="store_true",
         help="start the bot with these ids after provisioning",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would change, without creating or editing anything",
+    )
     args = parser.parse_args()
+
+    if args.dry_run and args.run:
+        parser.error("--dry-run cannot also start the bot with --run")
+    if args.dry_run and args.env_file:
+        parser.error("--dry-run writes nothing, so it cannot --env-file")
 
     logging.basicConfig(level=env.BOT_SETTINGS.LOG_LEVEL)
     bundle = use_certifi()
@@ -241,7 +285,7 @@ def main() -> None:
         )
 
     try:
-        values = asyncio.run(provision(args.guild_id))
+        values = asyncio.run(provision(args.guild_id, args.dry_run))
     except discord.LoginFailure:
         raise SystemExit(
             "Discord rejected the bot token (BOT_SETTINGS__DISCORD_TOKEN)."
@@ -260,9 +304,16 @@ def main() -> None:
     except OSError as exc:
         raise SystemExit(f"Could not reach Discord: {exc}")
 
-    print("\nEnvironment for the bot:")
+    if args.dry_run:
+        print("\nIds this run would produce:")
+    else:
+        print("\nEnvironment for the bot:")
     for field, key in ENV_KEYS:
-        print(f"  {key}={values[field]}")
+        value = values[field]
+        print(f"  {key}={'(would be created)' if value is None else value}")
+    if args.dry_run:
+        print("\nDry run: nothing was created, edited or written.")
+        return
     if args.env_file:
         write_env_file(args.env_file, values)
         print(f"\nWrote those keys to {args.env_file}")
