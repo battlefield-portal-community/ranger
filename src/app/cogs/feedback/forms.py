@@ -88,15 +88,13 @@ FORMS: dict[str, tuple[FormField, ...]] = {
         FormField(
             key="why",
             label="How it helps",
-            hint="What it would improve for you or for everyone. Markdown works.",
-            limit=450,
-        ),
-        FormField(
-            key="example",
-            label="Example",
-            hint="Optional. A game, a mode or a link that shows the idea. Markdown works.",
-            limit=450,
-            required=False,
+            # One field rather than two: a modal has five slots, and the tag picker
+            # and the upload take two of the feature form's.
+            hint=(
+                "What it would improve, and an example if you have one "
+                "(a game, a mode, a link). Markdown works."
+            ),
+            limit=900,
         ),
     ),
 }
