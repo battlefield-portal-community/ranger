@@ -113,8 +113,8 @@ class FeedbackCog(commands.Cog):
         embed = discord.Embed(
             title="📮 Submit Feedback",
             description=(
-                "Press a button and fill in the form. Ranger files your post in the "
-                "right forum with the right tags and answers with a link.\n"
+                "Press a button and fill in the form. I file your post in the right "
+                "forum with the right tags and answer with a link.\n"
                 "A moderator replies in that thread, so keep an eye on it."
             ),
             color=discord.Color.blurple(),
