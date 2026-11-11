@@ -144,6 +144,9 @@ async def file_post(
         applied.append(feature)
 
     files = [await attachment.to_file() for attachment in submission.media]
+    # `files` is left out rather than passed empty: discord.py reads an explicit
+    # None as a list of attachments and iterates over it.
+    attachments = {"files": files} if files else {}
     try:
         result = await submission.forum.create_thread(
             name=name,
@@ -151,7 +154,7 @@ async def file_post(
             applied_tags=applied,
             # The body names the reporter; it must not ping them.
             allowed_mentions=discord.AllowedMentions.none(),
-            files=files or None,
+            **attachments,
         )
     except discord.Forbidden:
         log.warning("Not allowed to create posts in forum %s", submission.forum.id)
