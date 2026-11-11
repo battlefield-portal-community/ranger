@@ -35,8 +35,7 @@ STATUS_ALIASES: dict[str, frozenset[str]] = {
 
 # The statuses each kind of post can reach. A bug is patched and a feature is added;
 # expecting an "Added" tag in the bug forum, or "Patched" in the feature forum, only
-# ever reports a hole that nobody would fill. The topic tag (``feature-request``) is
-# not a status: it is applied once, when the post is filed.
+# ever reports a hole that nobody would fill.
 STATUSES_BY_KIND: dict[str, tuple[str, ...]] = {
     "bug": ("noted", "working", "patched", "needs-info", "duplicate", "declined"),
     "feature": ("noted", "working", "added", "needs-info", "duplicate", "declined"),
@@ -112,27 +111,18 @@ def game_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
     return resolve(forum, feedback_settings.settings().DEFAULT_GAME_TAG)
 
 
-def feature_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
-    """The tag marking a post as a feature request."""
-    return resolve(forum, feedback_settings.settings().FEATURE_TAG)
-
-
 def selectable_tags(forum: discord.ForumChannel) -> list[discord.ForumTag]:
     """The tags a reporter may pick for their own post.
 
     Discord marks a tag ``moderated`` when only members with Manage Threads can apply
-    it, so offering those would only get the post rejected. The game tag and the topic
-    tag are left out too: the cog applies them itself when it files the post.
+    it, so offering those would only get the post rejected. The game tag is left out
+    too: the cog applies it itself when it files the post.
     """
-    config = feedback_settings.settings()
-    applied_by_bot = {
-        normalise(config.DEFAULT_GAME_TAG),
-        normalise(config.FEATURE_TAG),
-    }
+    game = normalise(feedback_settings.settings().DEFAULT_GAME_TAG)
     return [
         tag
         for tag in forum.available_tags
-        if not tag.moderated and normalise(tag.name) not in applied_by_bot
+        if not tag.moderated and normalise(tag.name) != game
     ]
 
 

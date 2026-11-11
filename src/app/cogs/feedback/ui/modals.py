@@ -135,19 +135,6 @@ async def file_post(
         )
         return
     applied.append(game)
-    if submission.kind == "feature":
-        feature = tags.feature_tag(submission.forum)
-        if feature is None:
-            log.error(
-                "Forum %s has no %r tag",
-                submission.forum.id,
-                feedback_settings.settings().FEATURE_TAG,
-            )
-            await _reply(
-                interaction, "That forum is missing the tag I file with; ping a mod."
-            )
-            return
-        applied.append(feature)
 
     # The reporter's own picks, in the order the forum lists them. Resolved again
     # here: a tag can be deleted between the modal opening and the submit.
@@ -281,12 +268,11 @@ class FeedbackModal(discord.ui.Modal):
         if not choices:
             return
         # A thread can carry at most MAX_APPLIED_TAGS, and the cog spends one on the
-        # game tag (two on a feature request), so the picker offers the rest.
-        reserved = 1 + (self.kind == "feature")
+        # game tag, so the picker offers the rest.
         self.tag_select = discord.ui.Select(
             placeholder="Tags that fit (optional)",
             min_values=0,
-            max_values=max(1, min(len(choices), MAX_APPLIED_TAGS - reserved)),
+            max_values=max(1, min(len(choices), MAX_APPLIED_TAGS - 1)),
             required=False,
             options=[
                 # The forum's own emoji, so the option looks like the tag does.

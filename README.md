@@ -45,8 +45,8 @@ filed and the thread's status in SQLite.
   offers four on a bug form and three on a feature form, which spends two.
 - **Reporter credit:** the starter message ends with a small-type `Reported by
   @reporter`; the game is carried by the applied tag, not repeated in the body.
-- **Tags at creation:** every post carries the game tag (`BF6`); a feature request
-  also carries `feature-request`. The forums require a tag, so these are never empty.
+- **Tags at creation:** every post carries the game tag (`BF6`), plus whatever the
+  reporter picked in the form. The forums require a tag, so a post is never empty.
 - **Status is the thread's own tag.** Staff change it with Discord's "Edit Tags";
   `on_thread_update` mirrors the result into `feedback_posts.status`. Nothing acts on
   it yet — the mirror exists so the later forum cleanup pass has history to query. A
@@ -56,8 +56,7 @@ filed and the thread's status in SQLite.
   `Duplicate`, `Needs Info`, `Declined`); a feature goes `Noted` → `Working` →
   `Added` (plus the same others). The startup log only reports the statuses that
   forum's posts can reach, so it never asks the bug forum for an `Added` tag or the
-  feature forum for `Patched`. `feature-request` is a topic tag, applied once at
-  filing, not a status.
+  feature forum for `Patched`.
 - **Dedupe:** before filing, the report is searched (SQLite FTS5, no privileged
   intents) against earlier posts. A likely duplicate offers *Open existing* or *File
   anyway*; filing anyway is written to `feedback_events`.
@@ -70,7 +69,6 @@ filed and the thread's status in SQLite.
 | `FEEDBACK_COG_SETTINGS__BUG_FORUM_ID` | `1403608614899421294` | Bug forum. |
 | `FEEDBACK_COG_SETTINGS__FEATURE_FORUM_ID` | `1006491137441276005` | Feature forum. |
 | `FEEDBACK_COG_SETTINGS__DEFAULT_GAME_TAG` | `BF6` | Game tag stamped on every post. |
-| `FEEDBACK_COG_SETTINGS__FEATURE_TAG` | `feature-request` | Tag marking a post as a feature request. |
 | `FEEDBACK_COG_SETTINGS__MAX_UPLOAD_FILES` | `5` | Upload slots offered in the form; Discord's own maximum is 10. |
 
 ### Discord setup (manual, once)
