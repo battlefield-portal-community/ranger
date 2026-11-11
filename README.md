@@ -34,9 +34,10 @@ a reporter presses a button, fills a modal and nothing else. Ranger files the po
 in the right forum, applies the tags, and records who reported it, the body it
 filed and the thread's status in SQLite.
 
-- **Bug form:** Title · What happens · Steps to reproduce · optional media.
-- **Feature form:** Title · What you want · Why it helps · Example · optional media.
-  The free-text fields say markdown is supported, because it reaches the post as-is.
+- **Bug form:** Title · What happened · Steps to reproduce · optional media.
+- **Feature form:** Title · Your request · How it helps · Example (optional) · optional media.
+  The free-text fields say markdown is supported, because it reaches the post as-is,
+  and a field left empty is left out of the filed body.
 - **Reporter credit:** the starter message ends with a small-type `Reported by
   @reporter`; the game is carried by the applied tag, not repeated in the body.
 - **Tags at creation:** every post carries the game tag (`BF6`); a feature request
