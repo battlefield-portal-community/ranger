@@ -94,6 +94,10 @@ bot against them:
 python -m app.setup_feedback_test --guild-id <test server id> --run
 ```
 
+Add `--dry-run` to see what it would do — which category, forums, tags and the
+intake channel it would create or edit — without creating, editing or writing
+anything.
+
 Re-running is safe: existing channels are reused and only missing forum tags are
 added, nothing is deleted. Without `--run` it prints the three
 `FEEDBACK_COG_SETTINGS__*` ids instead — add `--env-file .env` to write them into a
