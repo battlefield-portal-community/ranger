@@ -117,6 +117,25 @@ def feature_tag(forum: discord.ForumChannel) -> discord.ForumTag | None:
     return resolve(forum, feedback_settings.settings().FEATURE_TAG)
 
 
+def selectable_tags(forum: discord.ForumChannel) -> list[discord.ForumTag]:
+    """The tags a reporter may pick for their own post.
+
+    Discord marks a tag ``moderated`` when only members with Manage Threads can apply
+    it, so offering those would only get the post rejected. The game tag and the topic
+    tag are left out too: the cog applies them itself when it files the post.
+    """
+    config = feedback_settings.settings()
+    applied_by_bot = {
+        normalise(config.DEFAULT_GAME_TAG),
+        normalise(config.FEATURE_TAG),
+    }
+    return [
+        tag
+        for tag in forum.available_tags
+        if not tag.moderated and normalise(tag.name) not in applied_by_bot
+    ]
+
+
 def tag_report(forum: discord.ForumChannel, kind: str) -> str:
     """Describe a forum's real tags, so a rename shows up in the log.
 

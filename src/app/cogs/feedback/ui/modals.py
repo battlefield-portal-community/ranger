@@ -26,6 +26,9 @@ MAX_LABEL_DESCRIPTION = 100
 # A file upload component cannot offer more slots than this.
 MAX_UPLOAD_FILES = 10
 
+# A forum thread can carry at most this many tags, applied_tags included.
+MAX_APPLIED_TAGS = 5
+
 
 @dataclass
 class Submission:
@@ -35,6 +38,9 @@ class Submission:
     forum: discord.ForumChannel
     reporter_id: int
     fields: dict[str, str]
+    # Tag ids the reporter picked; resolved again at filing, since a tag can be
+    # renamed away between the modal opening and the submit.
+    tag_ids: list[int]
     media: list[discord.Attachment]
     interaction_id: str
 
@@ -143,6 +149,11 @@ async def file_post(
             return
         applied.append(feature)
 
+    # The reporter's own picks, in the order the forum lists them. Resolved again
+    # here: a tag can be deleted between the modal opening and the submit.
+    chosen = set(submission.tag_ids)
+    applied.extend(tag for tag in submission.forum.available_tags if tag.id in chosen)
+
     files = [await attachment.to_file() for attachment in submission.media]
     # `files` is left out rather than passed empty: discord.py reads an explicit
     # None as a list of attachments and iterates over it.
@@ -219,6 +230,7 @@ class FeedbackModal(discord.ui.Modal):
         super().__init__(title=self.modal_title)
         self.forum = forum
         self._inputs: dict[str, discord.ui.TextInput] = {}
+        self.tag_select: discord.ui.Select | None = None
 
         for form_field in forms.fields(self.kind):
             assert len(form_field.label) <= MAX_LABEL_TEXT, form_field.label
@@ -243,6 +255,10 @@ class FeedbackModal(discord.ui.Modal):
                 )
             )
 
+        # Added before the upload so the optional picker is the last thing a
+        # reporter has to think about.
+        self._add_tag_select()
+
         media_hint = f"Optional · max {filesize_mb} MB each · up to {max_files} files"
         assert len(media_hint) <= MAX_LABEL_DESCRIPTION, media_hint
         self.media = discord.ui.FileUpload(
@@ -259,6 +275,37 @@ class FeedbackModal(discord.ui.Modal):
             )
         )
 
+    def _add_tag_select(self) -> None:
+        """Offer the forum's own tags, minus the ones a reporter cannot apply."""
+        choices = tags.selectable_tags(self.forum)
+        if not choices:
+            return
+        # A thread can carry at most MAX_APPLIED_TAGS, and the cog spends one on the
+        # game tag (two on a feature request), so the picker offers the rest.
+        reserved = 1 + (self.kind == "feature")
+        self.tag_select = discord.ui.Select(
+            placeholder="Tags that fit (optional)",
+            min_values=0,
+            max_values=max(1, min(len(choices), MAX_APPLIED_TAGS - reserved)),
+            required=False,
+            options=[
+                discord.SelectOption(label=tag.name, value=str(tag.id))
+                for tag in choices
+            ],
+        )
+        self.add_item(
+            discord.ui.Label(
+                text="Tags",
+                description="Optional. A mod can retag it later.",
+                component=self.tag_select,
+            )
+        )
+
+    def _tag_ids(self) -> list[int]:
+        if self.tag_select is None:
+            return []
+        return [int(value) for value in self.tag_select.values]
+
     def _values(self) -> dict[str, str]:
         return {
             key: text_input.value.strip() for key, text_input in self._inputs.items()
@@ -274,6 +321,7 @@ class FeedbackModal(discord.ui.Modal):
                 forum=self.forum,
                 reporter_id=interaction.user.id,
                 fields=self._values(),
+                tag_ids=self._tag_ids(),
                 media=list(self.media.values),
                 interaction_id=str(interaction.id),
             ),
@@ -281,14 +329,14 @@ class FeedbackModal(discord.ui.Modal):
 
 
 class BugReportModal(FeedbackModal):
-    """The bug form: title, what happens, steps, optional media."""
+    """The bug form: title, what happened, steps, tags, optional media."""
 
     kind = "bug"
     modal_title = "Report a Bug"
 
 
 class FeatureRequestModal(FeedbackModal):
-    """The feature form: title, want, why, example, optional media."""
+    """The feature form: title, request, how it helps, tags, optional media."""
 
     kind = "feature"
     modal_title = "Request a Feature"
