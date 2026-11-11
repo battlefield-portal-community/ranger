@@ -8,6 +8,8 @@ Holds:
 - ``bot_state``: small key/value state, currently the posted menu message id so we
   edit it on restart instead of posting a duplicate.
 - ``maps``: the curated level id -> display name list, maintained from Discord.
+- ``feedback_posts`` / ``feedback_events`` / ``feedback_fts``: the forum intake
+  audit trail, the tag mirror and the dedupe index (see :mod:`app.cogs.feedback`).
 
 The database path is taken from :data:`app.config.env` and a module-level path is
 cached by :func:`init_db`, so the accessor helpers can be called without passing
@@ -17,6 +19,7 @@ it around.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 
 import aiosqlite
@@ -54,6 +57,36 @@ CREATE TABLE IF NOT EXISTS maps (
     -- The season a map was added in, when it is known.
     season   INTEGER
 );
+CREATE TABLE IF NOT EXISTS feedback_posts (
+    thread_id      INTEGER PRIMARY KEY,
+    forum_id       INTEGER NOT NULL,
+    -- 'bug' | 'feature'
+    kind           TEXT    NOT NULL,
+    reporter_id    TEXT    NOT NULL,
+    summary        TEXT    NOT NULL,
+    body           TEXT    NOT NULL,
+    -- Mirror of the thread's own tags for later reporting, not an active state
+    -- machine: 'open' means the thread carries no status tag.
+    status         TEXT    NOT NULL DEFAULT 'open',
+    status_at      INTEGER NOT NULL,
+    created_at     INTEGER NOT NULL,
+    -- A replayed or retried modal submit must not file a second thread.
+    interaction_id TEXT UNIQUE
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_status
+    ON feedback_posts (status, created_at);
+CREATE TABLE IF NOT EXISTS feedback_events (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id INTEGER NOT NULL,
+    -- create | status | dedupe | error
+    kind      TEXT    NOT NULL,
+    actor_id  TEXT    NOT NULL,
+    detail    TEXT,
+    at        INTEGER NOT NULL
+);
+-- Needs FTS5 compiled into the SQLite build the bot runs on.
+CREATE VIRTUAL TABLE IF NOT EXISTS feedback_fts
+    USING fts5 (thread_id UNINDEXED, summary, body);
 """
 
 # ``CREATE TABLE IF NOT EXISTS`` leaves older databases untouched, so columns added
@@ -328,3 +361,214 @@ async def seed_maps(entries: list[MapEntry]) -> None:
             [(e.level_id, e.name, e.sdk_id, e.season) for e in entries],
         )
         await conn.commit()
+
+
+@dataclass(frozen=True)
+class FeedbackPost:
+    """A filed forum post as stored in the ``feedback_posts`` table."""
+
+    thread_id: int
+    forum_id: int
+    kind: str
+    reporter_id: str
+    summary: str
+    body: str
+    status: str
+    status_at: int
+    created_at: int
+    interaction_id: str | None
+
+
+_FEEDBACK_COLUMN_NAMES = (
+    "thread_id",
+    "forum_id",
+    "kind",
+    "reporter_id",
+    "summary",
+    "body",
+    "status",
+    "status_at",
+    "created_at",
+    "interaction_id",
+)
+_FEEDBACK_COLUMNS = ", ".join(_FEEDBACK_COLUMN_NAMES)
+_FEEDBACK_JOIN_COLUMNS = ", ".join(f"p.{name}" for name in _FEEDBACK_COLUMN_NAMES)
+
+
+def _row_to_feedback(row: tuple) -> FeedbackPost:
+    return FeedbackPost(
+        thread_id=row[0],
+        forum_id=row[1],
+        kind=row[2],
+        reporter_id=str(row[3]),
+        summary=row[4],
+        body=row[5],
+        status=row[6],
+        status_at=row[7],
+        created_at=row[8],
+        interaction_id=row[9],
+    )
+
+
+async def create_feedback(
+    *,
+    thread_id: int,
+    forum_id: int,
+    kind: str,
+    reporter_id: int | str,
+    summary: str,
+    body: str,
+    interaction_id: str | None = None,
+    status: str = "open",
+    created_at: int | None = None,
+) -> bool:
+    """Record a filed post, reporting whether a row was inserted.
+
+    Returns ``False`` when this thread is already recorded or this interaction
+    was already used to file one, so a replayed submit creates nothing.
+    """
+    now = int(time.time())
+    async with aiosqlite.connect(_path()) as conn:
+        cur = await conn.execute(
+            """
+            INSERT OR IGNORE INTO feedback_posts
+                (thread_id, forum_id, kind, reporter_id, summary, body,
+                 status, status_at, created_at, interaction_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                thread_id,
+                forum_id,
+                kind,
+                str(reporter_id),
+                summary,
+                body,
+                status,
+                now,
+                now if created_at is None else int(created_at),
+                interaction_id,
+            ),
+        )
+        inserted = cur.rowcount > 0
+        await conn.commit()
+    return inserted
+
+
+async def get_feedback(thread_id: int) -> FeedbackPost | None:
+    """Return the filed post for a thread, or None if it was not filed by us."""
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(
+            f"SELECT {_FEEDBACK_COLUMNS} FROM feedback_posts WHERE thread_id = ?",
+            (thread_id,),
+        ) as cur:
+            row = await cur.fetchone()
+    return None if row is None else _row_to_feedback(row)
+
+
+async def set_feedback_status(
+    thread_id: int, status: str, *, status_at: int | None = None
+) -> bool:
+    """Mirror a thread's status tag, reporting whether a row was updated."""
+    async with aiosqlite.connect(_path()) as conn:
+        cur = await conn.execute(
+            "UPDATE feedback_posts SET status = ?, status_at = ? WHERE thread_id = ?",
+            (
+                status,
+                int(time.time()) if status_at is None else int(status_at),
+                thread_id,
+            ),
+        )
+        updated = cur.rowcount > 0
+        await conn.commit()
+    return updated
+
+
+async def list_feedback(
+    status: str | None = None,
+    forum_id: int | None = None,
+    limit: int | None = None,
+) -> list[FeedbackPost]:
+    """Return filed posts, newest first, optionally filtered."""
+    query = f"SELECT {_FEEDBACK_COLUMNS} FROM feedback_posts"
+    conditions: list[str] = []
+    params: list[object] = []
+    if status is not None:
+        conditions.append("status = ?")
+        params.append(status)
+    if forum_id is not None:
+        conditions.append("forum_id = ?")
+        params.append(forum_id)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY created_at DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(query, params) as cur:
+            rows = await cur.fetchall()
+    return [_row_to_feedback(row) for row in rows]
+
+
+async def count_by_status() -> dict[str, int]:
+    """Return how many filed posts sit in each status."""
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(
+            "SELECT status, COUNT(*) FROM feedback_posts GROUP BY status"
+        ) as cur:
+            rows = await cur.fetchall()
+    return {row[0]: row[1] for row in rows}
+
+
+async def log_feedback_event(
+    thread_id: int,
+    kind: str,
+    actor_id: int | str,
+    detail: str | None = None,
+    *,
+    at: int | None = None,
+) -> None:
+    """Append to the feedback audit trail."""
+    async with aiosqlite.connect(_path()) as conn:
+        await conn.execute(
+            """
+            INSERT INTO feedback_events (thread_id, kind, actor_id, detail, at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                thread_id,
+                kind,
+                str(actor_id),
+                detail,
+                int(time.time()) if at is None else int(at),
+            ),
+        )
+        await conn.commit()
+
+
+async def index_feedback(thread_id: int, summary: str, body: str) -> None:
+    """(Re)index one post for dedupe lookups."""
+    async with aiosqlite.connect(_path()) as conn:
+        await conn.execute("DELETE FROM feedback_fts WHERE thread_id = ?", (thread_id,))
+        await conn.execute(
+            "INSERT INTO feedback_fts (thread_id, summary, body) VALUES (?, ?, ?)",
+            (thread_id, summary, body),
+        )
+        await conn.commit()
+
+
+async def search_feedback(match: str, limit: int = 20) -> list[FeedbackPost]:
+    """Search the dedupe index with an already-quoted FTS5 ``MATCH`` expression."""
+    async with aiosqlite.connect(_path()) as conn:
+        async with conn.execute(
+            f"""
+            SELECT {_FEEDBACK_JOIN_COLUMNS}
+            FROM feedback_fts f JOIN feedback_posts p ON p.thread_id = f.thread_id
+            WHERE feedback_fts MATCH ?
+            ORDER BY bm25(feedback_fts)
+            LIMIT ?
+            """,
+            (match, limit),
+        ) as cur:
+            rows = await cur.fetchall()
+    return [_row_to_feedback(row) for row in rows]
