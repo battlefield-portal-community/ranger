@@ -23,17 +23,7 @@ class FeedbackMenuView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
-    @discord.ui.button(
-        label="Report a Bug",
-        style=discord.ButtonStyle.danger,
-        emoji="🐞",
-        custom_id=BUG_BUTTON_ID,
-    )
-    async def report_bug(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
-        await self._send_modal(interaction, "bug")
-
+    # Features sit first: the decorated order is the render order.
     @discord.ui.button(
         label="Request a Feature",
         style=discord.ButtonStyle.success,
@@ -44,6 +34,17 @@ class FeedbackMenuView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button
     ) -> None:
         await self._send_modal(interaction, "feature")
+
+    @discord.ui.button(
+        label="Report a Bug",
+        style=discord.ButtonStyle.danger,
+        emoji="🐞",
+        custom_id=BUG_BUTTON_ID,
+    )
+    async def report_bug(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        await self._send_modal(interaction, "bug")
 
     async def _send_modal(self, interaction: discord.Interaction, kind: str) -> None:
         config = feedback_settings.settings()
