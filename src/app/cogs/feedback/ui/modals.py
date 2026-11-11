@@ -219,21 +219,23 @@ class FeedbackModal(discord.ui.Modal):
 
         for form_field in forms.fields(self.kind):
             assert len(form_field.label) <= MAX_LABEL_TEXT, form_field.label
-            assert len(form_field.hint) <= MAX_LABEL_DESCRIPTION, form_field.hint
+            # An empty hint means no description: Discord rejects an empty one.
+            if form_field.hint:
+                assert len(form_field.hint) <= MAX_LABEL_DESCRIPTION, form_field.hint
             text_input = discord.ui.TextInput(
                 style=(
                     discord.TextStyle.paragraph
                     if form_field.paragraph
                     else discord.TextStyle.short
                 ),
-                required=True,
+                required=form_field.required,
                 max_length=form_field.limit,
             )
             self._inputs[form_field.key] = text_input
             self.add_item(
                 discord.ui.Label(
                     text=form_field.label,
-                    description=form_field.hint,
+                    description=form_field.hint or None,
                     component=text_input,
                 )
             )

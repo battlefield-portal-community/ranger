@@ -39,9 +39,12 @@ class FormField:
 
     key: str
     label: str
-    hint: str
     limit: int
+    # Shown under the label in the modal; empty means no description at all.
+    hint: str = ""
     paragraph: bool = True
+    # Fields left empty are left out of the body, so an optional one costs nothing.
+    required: bool = True
     # The title names the thread instead of appearing in the body.
     in_body: bool = True
 
@@ -51,14 +54,13 @@ FORMS: dict[str, tuple[FormField, ...]] = {
         FormField(
             key="summary",
             label="Title",
-            hint="One line: it becomes the thread title.",
             limit=100,
             paragraph=False,
             in_body=False,
         ),
         FormField(
-            key="what_happens",
-            label="What happens",
+            key="what_happened",
+            label="What happened",
             hint="The bug itself. Markdown works; a clip link is fine too.",
             limit=900,
         ),
@@ -73,28 +75,28 @@ FORMS: dict[str, tuple[FormField, ...]] = {
         FormField(
             key="summary",
             label="Title",
-            hint="One line: it becomes the thread title.",
             limit=100,
             paragraph=False,
             in_body=False,
         ),
         FormField(
             key="want",
-            label="What you want",
+            label="Your request",
             hint="The change you are asking for. Markdown works.",
             limit=800,
         ),
         FormField(
             key="why",
-            label="Why it helps",
+            label="How it helps",
             hint="What it would improve for you or for everyone. Markdown works.",
             limit=450,
         ),
         FormField(
             key="example",
             label="Example",
-            hint="A game, a mode or a link that shows the idea. Markdown works.",
+            hint="Optional. A game, a mode or a link that shows the idea. Markdown works.",
             limit=450,
+            required=False,
         ),
     ),
 }
@@ -115,16 +117,22 @@ def _render(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
     sections = [
         f"**{field.label}:**\n{values[field.key]}"
         for field in fields(kind)
-        if field.in_body
+        if field.in_body and values[field.key].strip()
     ]
     sections.append(f"{_SUBTEXT}{_REPORTER_VERB} <@{reporter_id}>")
     return _LEADING_BLANK + "\n\n".join(sections)
 
 
 def body_overhead(kind: str) -> int:
-    """Length of the body with every free-text field empty."""
-    values = {field.key: "" for field in fields(kind)}
-    return len(_render(kind, "0" * MAX_SNOWFLAKE_DIGITS, values))
+    """The body's fixed cost: the credit line and every heading, text aside.
+
+    Measured by rendering each section with a one-character stand-in for its text
+    and discounting the stand-ins, since an empty section is left out entirely.
+    """
+    values = {field.key: "x" for field in fields(kind)}
+    return len(_render(kind, "0" * MAX_SNOWFLAKE_DIGITS, values)) - sum(
+        1 for field in fields(kind) if field.in_body
+    )
 
 
 def body_budget(kind: str) -> int:
