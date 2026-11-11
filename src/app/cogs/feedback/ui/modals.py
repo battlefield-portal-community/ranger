@@ -145,13 +145,20 @@ async def file_post(
     # `files` is left out rather than passed empty: discord.py reads an explicit
     # None as a list of attachments and iterates over it.
     attachments = {"files": files} if files else {}
+    # The body's credit line names the reporter, and it is there to reach them, so
+    # that one mention is allowed to ping. Nothing else is: the report can contain
+    # any mention its author typed.
+    reporter_ping = discord.AllowedMentions(
+        everyone=False,
+        roles=False,
+        users=[discord.Object(id=submission.reporter_id)],
+    )
     try:
         result = await submission.forum.create_thread(
             name=name,
             content=body,
             applied_tags=applied,
-            # The body names the reporter; it must not ping them.
-            allowed_mentions=discord.AllowedMentions.none(),
+            allowed_mentions=reporter_ping,
             **attachments,
         )
     except discord.Forbidden:

@@ -44,7 +44,10 @@ filed and the thread's status in SQLite.
   the reporter could not have chosen. A thread takes at most five tags, so the picker
   offers four on a bug form and three on a feature form, which spends two.
 - **Reporter credit:** the starter message ends with a small-type `Reported by
-  @reporter`; the game is carried by the applied tag, not repeated in the body.
+  @reporter`, and that mention is allowed to ping so the reporter hears about their
+  own post. It is the only mention allowed: `everyone` and `roles` stay off, so text
+  a reporter typed cannot ping anyone. The game is carried by the applied tag, not
+  repeated in the body.
 - **Tags at creation:** every post carries the game tag (`BF6`), plus whatever the
   reporter picked in the form. The forums require a tag, so a post is never empty.
 - **Status is the thread's own tag.** Staff change it with Discord's "Edit Tags";
