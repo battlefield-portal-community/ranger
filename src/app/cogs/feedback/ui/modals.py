@@ -45,11 +45,18 @@ async def _reply(
     *,
     view: discord.ui.View | None = None,
 ) -> None:
-    """Answer wherever the interaction has room left to answer."""
+    """Answer wherever the interaction has room left to answer.
+
+    ``view`` is only passed along when there is one: discord.py's senders take
+    ``MISSING`` as "no view", and reject an explicit ``None``.
+    """
+    kwargs: dict[str, object] = {"ephemeral": True}
+    if view is not None:
+        kwargs["view"] = view
     if interaction.response.is_done():
-        await interaction.followup.send(content, view=view, ephemeral=True)
+        await interaction.followup.send(content, **kwargs)
     else:
-        await interaction.response.send_message(content, view=view, ephemeral=True)
+        await interaction.response.send_message(content, **kwargs)
 
 
 def _duplicate_prompt(matches: list[db.FeedbackPost], guild_id: int | None) -> str:
