@@ -8,7 +8,7 @@ The single ``env`` global is imported across the project, e.g.::
 
 Environment variables use the nested delimiter ``__`` to address a nested
 settings block, e.g. ``BOT_SETTINGS__DISCORD_TOKEN``,
-``PLAYTEST_COG_SETTINGS__MENU_CHANNEL_ID``.
+``PLAYTEST_COG_SETTINGS__MENU_CHANNEL_ID``, ``FEEDBACK_COG_SETTINGS__MENU_CHANNEL_ID``.
 """
 
 from __future__ import annotations
@@ -54,11 +54,26 @@ class PlaytestCogSettings(BaseModel):
     EVENT_END_WARN_MINUTES: int = 15
 
 
+class FeedbackCogSettings(BaseModel):
+    """Settings owned by the feedback intake cog."""
+
+    MENU_CHANNEL_ID: int
+    BUG_FORUM_ID: int = Field(default=1403608614899421294)
+    FEATURE_FORUM_ID: int = Field(default=1006491137441276005)
+    DEFAULT_GAME_TAG: str = Field(default="BF6")
+    FEATURE_TAG: str = Field(default="feature-request")
+    # Clamped to Discord's own maximum of 10 files per upload.
+    MAX_UPLOAD_FILES: int = Field(default=5)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 
     BOT_SETTINGS: BotSettings
     PLAYTEST_COG_SETTINGS: PlaytestCogSettings
+    # Optional so an image carrying the feedback cog can ship before the
+    # deployment env names a menu channel; the cog stays inert until it is set.
+    FEEDBACK_COG_SETTINGS: FeedbackCogSettings | None = None
 
 
 # Global singleton imported across the project.
