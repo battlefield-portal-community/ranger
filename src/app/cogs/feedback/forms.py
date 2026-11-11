@@ -12,20 +12,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import settings as feedback_settings
-
 DISCORD_MESSAGE_LIMIT = 2000
 THREAD_NAME_LIMIT = 100
 
 # A Discord snowflake is a 64-bit int, so the reporter mention is at most 19 digits.
 MAX_SNOWFLAKE_DIGITS = 19
 
-# What the body says instead of asking, because BF6 is the default game.
-_GAME_NOTE = "(assumed)"
+# Discord's subtext markdown, so the reporter credit reads as a footnote under the
+# report instead of competing with it.
+_SUBTEXT = "-# "
 
-# Word joining the reporter mention to the headline. The same for both kinds, so
-# the fixed overhead stays identical and the field budgets below stay predictable.
-_REPORTER_VERB = "reported by"
+# The credit line closing every body. The same for both kinds, so the fixed overhead
+# stays identical and the field budgets below stay predictable.
+_REPORTER_VERB = "Reported by"
 
 
 @dataclass(frozen=True)
@@ -105,28 +104,21 @@ def field_limits(kind: str) -> dict[str, int]:
     return {field.key: field.limit for field in fields(kind)}
 
 
-def default_game() -> str:
-    """The game tag stamped on every post, used while settings are absent too."""
-    current = feedback_settings.configured()
-    # Mirrors the model default so an export can be seeded without the env block.
-    return "BF6" if current is None else current.DEFAULT_GAME_TAG
-
-
-def _render(
-    kind: str, game: str, reporter_id: int | str, values: dict[str, str]
-) -> str:
-    lines = [f"{game} {_GAME_NOTE} · {_REPORTER_VERB} <@{reporter_id}>"]
-    for field in fields(kind):
-        if not field.in_body:
-            continue
-        lines.extend(["", f"**{field.label}:**", values[field.key]])
-    return "\n".join(lines)
+def _render(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
+    # The game is only in the applied tags now, so it is not repeated in the body.
+    sections = [
+        f"**{field.label}:**\n{values[field.key]}"
+        for field in fields(kind)
+        if field.in_body
+    ]
+    sections.append(f"{_SUBTEXT}{_REPORTER_VERB} <@{reporter_id}>")
+    return "\n\n".join(sections)
 
 
 def body_overhead(kind: str) -> int:
     """Length of the body with every free-text field empty."""
     values = {field.key: "" for field in fields(kind)}
-    return len(_render(kind, default_game(), "0" * MAX_SNOWFLAKE_DIGITS, values))
+    return len(_render(kind, "0" * MAX_SNOWFLAKE_DIGITS, values))
 
 
 def body_budget(kind: str) -> int:
@@ -148,7 +140,7 @@ def limits_fit(kind: str) -> bool:
 
 def build_body(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
     """Assemble the starter message for a filed post."""
-    body = _render(kind, default_game(), reporter_id, values)
+    body = _render(kind, reporter_id, values)
     if len(body) > DISCORD_MESSAGE_LIMIT:
         raise ValueError(
             f"{kind} body is {len(body)} chars, over Discord's {DISCORD_MESSAGE_LIMIT}"

@@ -38,7 +38,7 @@ class FeedbackCog(commands.Cog):
             if not forms.limits_fit(kind):
                 log.error(
                     "The %s form no longer fits in a %s-character post; check "
-                    "DEFAULT_GAME_TAG",
+                    "the field limits in forms.FORMS",
                     kind,
                     forms.DISCORD_MESSAGE_LIMIT,
                 )
