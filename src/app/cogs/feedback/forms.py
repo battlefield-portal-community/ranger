@@ -53,13 +53,13 @@ FORMS: dict[str, tuple[FormField, ...]] = {
         FormField(
             key="what_happens",
             label="What happens",
-            hint="The bug itself. A clip link works if it is easier to show.",
+            hint="The bug itself. Markdown works; a clip link is fine too.",
             limit=900,
         ),
         FormField(
             key="steps",
             label="Steps to reproduce",
-            hint="How a moderator can trigger it.",
+            hint="How a moderator can trigger it. Markdown works.",
             limit=700,
         ),
     ),
@@ -75,19 +75,19 @@ FORMS: dict[str, tuple[FormField, ...]] = {
         FormField(
             key="want",
             label="What you want",
-            hint="The change you are asking for.",
+            hint="The change you are asking for. Markdown works.",
             limit=800,
         ),
         FormField(
             key="why",
             label="Why it helps",
-            hint="What it would improve for you or for everyone.",
+            hint="What it would improve for you or for everyone. Markdown works.",
             limit=450,
         ),
         FormField(
             key="example",
             label="Example",
-            hint="A game, a mode or a link that shows the idea.",
+            hint="A game, a mode or a link that shows the idea. Markdown works.",
             limit=450,
         ),
     ),
