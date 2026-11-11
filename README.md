@@ -34,8 +34,8 @@ a reporter presses a button, fills a modal and nothing else. Ranger files the po
 in the right forum, applies the tags, and records who reported it, the body it
 filed and the thread's status in SQLite.
 
-- **Bug form:** Summary · What happens · Steps to reproduce · optional media.
-- **Feature form:** Summary · What you want · Why it helps · Example · optional media.
+- **Bug form:** Title · What happens · Steps to reproduce · optional media.
+- **Feature form:** Title · What you want · Why it helps · Example · optional media.
 - **Reporter credit:** the starter message ends with a small-type `Reported by
   @reporter`; the game is carried by the applied tag, not repeated in the body.
 - **Tags at creation:** every post carries the game tag (`BF6`); a feature request
