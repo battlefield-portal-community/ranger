@@ -80,9 +80,14 @@ class DuplicateMatchView(discord.ui.View):
                     url=f"https://discord.com/channels/{guild_id or '@me'}/{post.thread_id}",
                 )
             )
+        # Added here rather than with a decorator so it sits after the links.
+        file_anyway = discord.ui.Button(
+            label="File anyway", style=discord.ButtonStyle.secondary
+        )
+        file_anyway.callback = self._file_anyway
+        self.add_item(file_anyway)
 
-    @discord.ui.button(label="File anyway", style=discord.ButtonStyle.secondary)
-    async def file_anyway(
+    async def _file_anyway(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ) -> None:
         submission = dedupe.take(interaction.user.id)
