@@ -78,3 +78,22 @@ filed and the thread's status in SQLite.
 4. Optional, to let the dedupe cover threads posted before this cog existed:
    `python -m app.seed_feedback <discordchatexporter-export-dir>`. It is safe to
    re-run; threads already stored are skipped.
+
+### Testing on a scratch server
+
+With a bot that has **Administrator** in a test server, one command creates the
+category, both forums with the tags above (plus `Working` and `Declined`, which the
+live forums still lack) and the `@everyone`-muted intake channel, then starts the
+bot against them:
+
+```sh
+python -m app.setup_feedback_test --guild-id <test server id> --run
+```
+
+Re-running is safe: existing channels are reused and only missing forum tags are
+added, nothing is deleted. Without `--run` it prints the three
+`FEEDBACK_COG_SETTINGS__*` ids instead — add `--env-file .env` to write them into a
+file — so you can restart the bot however you normally do.
+
+Point `BOT_SETTINGS__GUILD_ID` at the same test server, or the intake message and
+the synced commands belong to another guild.
