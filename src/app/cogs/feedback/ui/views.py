@@ -88,9 +88,8 @@ class DuplicateMatchView(discord.ui.View):
         file_anyway.callback = self._file_anyway
         self.add_item(file_anyway)
 
-    async def _file_anyway(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
+    async def _file_anyway(self, interaction: discord.Interaction) -> None:
+        # An item callback takes the interaction alone; the button is not passed.
         submission = dedupe.take(interaction.user.id)
         if not isinstance(submission, modals.Submission):
             await interaction.response.edit_message(
