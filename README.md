@@ -34,6 +34,10 @@ a reporter presses a button, fills a modal and nothing else. Ranger files the po
 in the right forum, applies the tags, and records who reported it, the body it
 filed and the thread's status in SQLite.
 
+- **The intake message** is a Components v2 layout, not an embed: a title, then a
+  section per form — a question and a line of guidance, with the button beside them
+  — divided by separators, and a small footer naming the bot that files the post.
+  A "Rules and info" section that opens a rules modal is planned for v1.1.
 - **Bug form:** Title · What happened · Steps to reproduce · Tags · optional media.
 - **Feature form:** Title · Your request · How it helps · Tags · optional media.
   The free-text fields say markdown is supported, because it reaches the post as-is,
