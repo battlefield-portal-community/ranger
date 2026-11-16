@@ -17,6 +17,21 @@ BUG_BUTTON_ID = "feedback:bug"
 FEATURE_BUTTON_ID = "feedback:feature"
 
 HEADER_TEXT = "## 📮 Submit Feedback"
+# The container's accent bar walks this palette, one colour per cycle tick.
+MENU_COLOURS = (
+    discord.Color.blurple(),
+    discord.Color.green(),
+    discord.Color.gold(),
+    discord.Color.red(),
+    discord.Color.fuchsia(),
+)
+
+
+def menu_colour(index: int) -> discord.Color:
+    """The accent for a position in the cycle, wrapping around the palette."""
+    return MENU_COLOURS[index % len(MENU_COLOURS)]
+
+
 # A section holds its text beside one accessory, so the question and the line under
 # it are separate text displays with the button to their right.
 FEATURE_QUESTION = "**Have an idea for maps, scripts, or the editor?**"
@@ -40,9 +55,15 @@ class FeedbackMenuView(discord.ui.LayoutView):
     planned for v1.1: prepend it here.
     """
 
-    def __init__(self, *, bot_mention: str = "The bot") -> None:
+    def __init__(
+        self,
+        *,
+        bot_mention: str = "The bot",
+        accent: discord.Color | None = None,
+    ) -> None:
         """`bot_mention` names who files the post; the persistent view registered at
-        startup has no user yet, and only its button callbacks matter."""
+        startup has no user yet, and only its button callbacks matter. `accent` is the
+        container's bar, which the cog rotates on a timer."""
         super().__init__(timeout=None)
         # Section accessories cannot use the @discord.ui.button decorator, which
         # only collects items at the top level of a layout view, so the buttons are
@@ -64,7 +85,7 @@ class FeedbackMenuView(discord.ui.LayoutView):
                 ),
                 discord.ui.Separator(),
                 discord.ui.TextDisplay(FOOTER_TEXT.format(mention=bot_mention)),
-                accent_colour=discord.Color.blurple(),
+                accent_colour=accent if accent is not None else menu_colour(0),
             )
         )
 

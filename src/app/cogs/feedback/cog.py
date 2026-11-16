@@ -7,12 +7,12 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from ... import db, permissions
 from . import forms, tags
 from . import settings as feedback_settings
-from .ui import FeedbackMenuView, UpdateFeedbackModal
+from .ui import FeedbackMenuView, UpdateFeedbackModal, menu_colour
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,11 @@ class FeedbackCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self._menu_ensured = False
+        # Position in MENU_COLOURS: 0 on every start, so the first paint is blurple.
+        self._menu_colour = 0
+
+    async def cog_unload(self) -> None:
+        self.cycle_menu_colour.cancel()
 
     async def cog_load(self) -> None:
         if feedback_settings.configured() is None:
@@ -46,6 +51,30 @@ class FeedbackCog(commands.Cog):
                     kind,
                     forms.DISCORD_MESSAGE_LIMIT,
                 )
+        cycle = feedback_settings.settings().MENU_COLOUR_CYCLE_SECONDS
+        if cycle > 0:
+            self.cycle_menu_colour.change_interval(seconds=cycle)
+            self.cycle_menu_colour.start()
+
+    @tasks.loop(minutes=5)
+    async def cycle_menu_colour(self) -> None:
+        """Repaint the menu with the next accent colour.
+
+        The colour lives in the message payload, so a change costs one edit. The
+        interval comes from settings (``change_interval`` in ``cog_load``); a failed
+        repaint is logged rather than killing the loop, and the next tick retries.
+        """
+        self._menu_colour += 1
+        try:
+            await self.ensure_menu_message()
+        except Exception:
+            log.exception("Failed to repaint the feedback menu message")
+
+    @cycle_menu_colour.before_loop
+    async def before_cycle_menu_colour(self) -> None:
+        # The first tick is one interval after ready, so the menu on_ready posts is
+        # the one the cycle edits.
+        await self.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -194,7 +223,7 @@ class FeedbackCog(commands.Cog):
         )
 
     async def ensure_menu_message(self) -> None:
-        """Post the intake menu once, or edit the stored one on restart."""
+        """Post the intake menu, edit the stored one, or repaint it on the cycle."""
         channel_id = feedback_settings.settings().MENU_CHANNEL_ID
         channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(
             channel_id
@@ -208,7 +237,9 @@ class FeedbackCog(commands.Cog):
         # only caller, so the bot already knows its own user by now.
         bot_user = self.bot.user
         mention = bot_user.mention if bot_user is not None else "The bot"
-        view = FeedbackMenuView(bot_mention=mention)
+        view = FeedbackMenuView(
+            bot_mention=mention, accent=menu_colour(self._menu_colour)
+        )
         # Nobody needs pinging, least of all the bot named in the footer, and the
         # message is edited on every restart.
         no_pings = discord.AllowedMentions.none()

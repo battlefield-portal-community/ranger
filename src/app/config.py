@@ -58,6 +58,9 @@ class FeedbackCogSettings(BaseModel):
     """Settings owned by the feedback intake cog."""
 
     MENU_CHANNEL_ID: int
+    # Seconds between accent-colour changes on the intake message; 0 pins it to
+    # blurple. Five minutes reads as ambience and is nowhere near a rate limit.
+    MENU_COLOUR_CYCLE_SECONDS: int = Field(default=300)
     BUG_FORUM_ID: int = Field(default=1403608614899421294)
     FEATURE_FORUM_ID: int = Field(default=1006491137441276005)
     DEFAULT_GAME_TAG: str = Field(default="BF6")
