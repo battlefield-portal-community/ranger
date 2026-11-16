@@ -16,34 +16,83 @@ log = logging.getLogger(__name__)
 BUG_BUTTON_ID = "feedback:bug"
 FEATURE_BUTTON_ID = "feedback:feature"
 
+HEADER_TEXT = "## 📮 Submit Feedback"
+# A section holds its text beside one accessory, so the question and the line under
+# it are separate text displays with the button to their right.
+FEATURE_QUESTION = "**Have an idea for maps, scripts, or the editor?**"
+FEATURE_TEXT = "Say what you want and why."
+BUG_QUESTION = "**Encountered something broken?**"
+BUG_TEXT = "Tell us what happened, what you expected, and how to reproduce it."
+# Subtext: small and grey, so it reads as a footnote rather than a third action. The
+# mention is rendered with AllowedMentions.none(), so it names the bot without
+# pinging it. A section needs an accessory, and this line has nothing to press.
+FOOTER_TEXT = (
+    "-# {mention} will open a new post in the matching forum and reply here with a "
+    "link to it."
+)
 
-class FeedbackMenuView(discord.ui.View):
-    """The two buttons under the intake message, re-registered on every start."""
 
-    def __init__(self) -> None:
+class FeedbackMenuView(discord.ui.LayoutView):
+    """The intake menu: a title, then a question with its button beside it.
+
+    A v2 layout rather than an embed, so the message can carry a header, dividers
+    and one section per form with the button as its accessory. The rules section is
+    planned for v1.1: prepend it here.
+    """
+
+    def __init__(self, *, bot_mention: str = "The bot") -> None:
+        """`bot_mention` names who files the post; the persistent view registered at
+        startup has no user yet, and only its button callbacks matter."""
         super().__init__(timeout=None)
+        # Section accessories cannot use the @discord.ui.button decorator, which
+        # only collects items at the top level of a layout view, so the buttons are
+        # built here and their callbacks bound as instance attributes.
+        self.add_item(
+            discord.ui.Container(
+                discord.ui.TextDisplay(HEADER_TEXT),
+                discord.ui.Separator(),
+                discord.ui.Section(
+                    discord.ui.TextDisplay(FEATURE_QUESTION),
+                    discord.ui.TextDisplay(FEATURE_TEXT),
+                    accessory=self._feature_button(),
+                ),
+                discord.ui.Separator(),
+                discord.ui.Section(
+                    discord.ui.TextDisplay(BUG_QUESTION),
+                    discord.ui.TextDisplay(BUG_TEXT),
+                    accessory=self._bug_button(),
+                ),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(FOOTER_TEXT.format(mention=bot_mention)),
+                accent_colour=discord.Color.blurple(),
+            )
+        )
 
-    # Features sit first: the decorated order is the render order.
-    @discord.ui.button(
-        label="Request a Feature",
-        style=discord.ButtonStyle.success,
-        emoji="💡",
-        custom_id=FEATURE_BUTTON_ID,
-    )
-    async def request_feature(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
+    # Features sit first, matching the order they are added in.
+    def _feature_button(self) -> discord.ui.Button:
+        button = discord.ui.Button(
+            label="Request a Feature",
+            style=discord.ButtonStyle.success,
+            emoji="💡",
+            custom_id=FEATURE_BUTTON_ID,
+        )
+        button.callback = self._request_feature
+        return button
+
+    def _bug_button(self) -> discord.ui.Button:
+        button = discord.ui.Button(
+            label="Report a Bug",
+            style=discord.ButtonStyle.secondary,
+            emoji="🐞",
+            custom_id=BUG_BUTTON_ID,
+        )
+        button.callback = self._report_bug
+        return button
+
+    async def _request_feature(self, interaction: discord.Interaction) -> None:
         await self._send_modal(interaction, "feature")
 
-    @discord.ui.button(
-        label="Report a Bug",
-        style=discord.ButtonStyle.secondary,
-        emoji="🐞",
-        custom_id=BUG_BUTTON_ID,
-    )
-    async def report_bug(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
+    async def _report_bug(self, interaction: discord.Interaction) -> None:
         await self._send_modal(interaction, "bug")
 
     async def _send_modal(self, interaction: discord.Interaction, kind: str) -> None:
