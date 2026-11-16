@@ -350,12 +350,23 @@ class FeedbackModal(discord.ui.Modal):
                 for tag in choices
             ],
         )
+        hint = self._tags_hint()
+        assert len(hint) <= MAX_LABEL_DESCRIPTION, hint
         self.add_item(
             discord.ui.Label(
                 text="Tags",
-                description="Optional. A mod can retag it later.",
+                description=hint,
                 component=self.tag_select,
             )
+        )
+
+    def _tags_hint(self) -> str:
+        """Say which tag the cog applies by itself, so nobody picks it again."""
+        game = tags.game_tag(self.forum)
+        if game is None:
+            return "Optional. A mod can change tags later"
+        return (
+            f"Optional. {game.name} is tagged by default; a mod can change tags later"
         )
 
     def _tag_ids(self) -> list[int]:
