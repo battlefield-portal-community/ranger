@@ -1,9 +1,9 @@
 """Look up Portal experience details from the gametools API.
 
 Given an experience code entered when scheduling a playtest, fetch the shared
-playground metadata and render it as a Discord embed posted into the playtest
-thread. The upstream JSON is deeply nested and inconsistent, so parsing is
-defensive throughout and any failure degrades to "no embed".
+playground metadata so the announcement can show it. The upstream JSON is deeply
+nested and inconsistent, so parsing is defensive throughout and any failure
+degrades to "no details".
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from __future__ import annotations
 import logging
 
 import aiohttp
-import discord
 
 from ... import maps_data
 
@@ -149,66 +148,3 @@ async def fetch_experience(code: str) -> Experience | None:
     except Exception:
         log.warning("Failed to parse experience for code %r", code, exc_info=True)
         return None
-
-
-async def post_experience_embed(thread: discord.abc.Messageable, code: str) -> None:
-    """Look up ``code`` and post its details (or a warning) into ``thread``.
-
-    Intended to run as a fire-and-forget background task after the scheduling
-    flow finishes, since the network call can be slow. Swallows all errors so a
-    failure here never surfaces as an unhandled task exception.
-    """
-    try:
-        experience = await fetch_experience(code)
-        if experience is not None:
-            await thread.send(embed=build_experience_embed(experience))
-        else:
-            log.info("No experience found for code %r", code)
-            await thread.send(
-                f"⚠️ Couldn't find an experience for code `{code.strip().upper()}`."
-            )
-    except Exception:
-        log.exception("Failed to post experience embed for code %r", code)
-
-
-# Show at most this many map names inline; the rest collapse into "+N more".
-MAX_MAPS_SHOWN = 8
-
-
-def _maps_value(maps: list[str]) -> str:
-    """Comma-joined map list, capped with a "+N more" suffix for long rotations."""
-    shown = maps[:MAX_MAPS_SHOWN]
-    value = ", ".join(f"`{name}`" for name in shown)
-    remaining = len(maps) - len(shown)
-    if remaining > 0:
-        value += f" … +{remaining} more"
-    return value
-
-
-def build_experience_embed(experience: Experience) -> discord.Embed:
-    """Render an experience as a Discord embed for the playtest thread."""
-    embed = discord.Embed(
-        title=f"🎮 {experience.name}",
-        description=experience.description or None,
-        color=discord.Color.blurple(),
-    )
-    if experience.players:
-        embed.add_field(name="Players", value=experience.players, inline=True)
-    if experience.likes:
-        embed.add_field(name="Likes", value=f"👍 {experience.likes}", inline=True)
-    if experience.updated:
-        embed.add_field(
-            name="Updated", value=f"<t:{experience.updated}:R>", inline=True
-        )
-    if experience.maps:
-        embed.add_field(
-            name=f"Maps ({len(experience.maps)})",
-            value=_maps_value(experience.maps),
-            inline=False,
-        )
-    if experience.tags:
-        embed.add_field(name="Tags", value=", ".join(experience.tags), inline=False)
-    if experience.image:
-        embed.set_image(url=experience.image)
-    embed.set_footer(text="Experience details via gametools.network")
-    return embed

@@ -1,8 +1,9 @@
-"""Announcement helpers for the playtest cog.
+"""Announcement for the playtest cog.
 
 Build, post and edit the components v2 layout that pings the selected region
 roles when a playtest is scheduled or later updated. One container holds the
-header, the description at full width, and the code/regions/scheduler lines.
+header, the experience details beside a thumbnail of the map when the code
+resolves, the description at full width, and the code/regions/scheduler lines.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import discord
 from discord import TextChannel
 
 from ...config import env
+from .experience import Experience
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +37,9 @@ EXPERIENCE_CODE_MAX_LENGTH = 6
 # A Discord snowflake (user id) is a 64-bit int, so at most 19 digits; round up
 # to 20 for a little headroom.
 MAX_SNOWFLAKE_DIGITS = 20
+
+# Show at most this many map names inline; the rest collapse into "+N more".
+MAX_MAPS_SHOWN = 8
 
 # Emoji and title pools for the announcement header. One of each is picked
 # independently but deterministically per playtest (seeded on the announcement
@@ -111,20 +116,60 @@ _MAX_HEADER_LINE = max(
 )
 
 
-def meta_texts(code: str, roles: list[discord.Role], user_id: int) -> list[str]:
-    """The trailing lines: the code and regions, then the scheduler footer."""
+def maps_line(maps: list[str]) -> str:
+    """Comma-joined map list, capped with a "+N more" suffix for long rotations."""
+    shown = maps[:MAX_MAPS_SHOWN]
+    line = ", ".join(f"`{name}`" for name in shown)
+    remaining = len(maps) - len(shown)
+    if remaining > 0:
+        line += f" … +{remaining} more"
+    return line
+
+
+def experience_block(experience: Experience) -> str:
+    """Render the looked-up experience as a markdown block for the announcement."""
+    lines = [f"### 🎮 {experience.name}"]
+    stats = []
+    if experience.players:
+        stats.append(f"{experience.players} players")
+    if experience.likes:
+        stats.append(f"👍 {experience.likes}")
+    if experience.updated:
+        stats.append(f"<t:{experience.updated}:R>")
+    if stats:
+        lines.append("-# " + " · ".join(stats))
+    if experience.maps:
+        lines.append(maps_line(experience.maps))
+    if experience.tags:
+        lines.append("-# " + ", ".join(experience.tags))
+    return "\n".join(lines)
+
+
+def meta_texts(
+    code: str,
+    roles: list[discord.Role],
+    user_id: int,
+    experience: Experience | None,
+) -> list[str]:
+    """The trailing lines: code/regions, an optional warning, and the footer."""
     details = [f"**Experience Code:** `{code}`"] if code else []
     details.append(f"**Regions:** {' '.join(r.mention for r in roles) or '—'}")
-    return ["\n".join(details), f"-# scheduled by **<@{user_id}>**"]
+
+    texts = ["\n".join(details)]
+    if code and experience is None:
+        texts.append(f"-# ⚠️ Couldn't find experience `{code}` — check the code.")
+    texts.append(f"-# scheduled by **<@{user_id}>**")
+    return texts
 
 
 def announcement_overhead(role_ids: Iterable[int]) -> int:
     """Worst-case length of everything in the announcement except the description.
 
     The description is the only unbounded part the scheduler controls, so summing
-    the maxima of the static parts (header, code/regions, footer) tells us how many
-    characters are left for it. Anything the announcement adds later that cannot be
-    bounded here is covered by :func:`_fit_description` instead.
+    the maxima of the static parts (header, code/regions, warning, footer) tells us
+    how many characters are left for it. The experience block is left out: it is
+    unknown while the modal is open, so :func:`build_announcement_view` trims the
+    description against the real total instead.
     """
     mentions = [f"<@&{role_id}>" for role_id in role_ids]
     regions_line = (
@@ -136,9 +181,14 @@ def announcement_overhead(role_ids: Iterable[int]) -> int:
     # Code and regions share one text display, joined by a newline.
     details = code_line + 1 + regions_line
 
+    warning_line = (
+        len("-# ⚠️ Couldn't find experience `` — check the code.")
+        + EXPERIENCE_CODE_MAX_LENGTH
+    )
+
     footer_line = len("-# scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
 
-    return _MAX_HEADER_LINE + details + footer_line
+    return _MAX_HEADER_LINE + details + warning_line + footer_line
 
 
 def description_char_budget(role_ids: Iterable[int]) -> int:
@@ -150,9 +200,10 @@ def description_char_budget(role_ids: Iterable[int]) -> int:
 def _fit_description(description: str, others: Iterable[str]) -> str:
     """Shorten the description until every text display fits the v2 text budget.
 
-    The modal already caps the description, but anything appended later can push the
-    total over. Trimming here is the last line of defence: Discord rejects the whole
-    message with a 400 otherwise.
+    The modal already caps the description, but the experience block is only known
+    after the code is looked up, so a long description plus a long experience can
+    still overshoot. Trimming here is the last line of defence: Discord rejects the
+    whole message with a 400 otherwise.
     """
     budget = MAX_TEXT_CHARS - sum(len(text) for text in others)
     if len(description) <= budget:
@@ -188,23 +239,47 @@ def build_announcement_view(
     description: str,
     code: str,
     roles: list[discord.Role],
+    experience: Experience | None = None,
 ) -> discord.ui.LayoutView:
     """Assemble the announcement as a components v2 layout.
 
     ``seed`` drives the header and accent so a playtest keeps the same look across
     edits; callers pass the message id once the message exists.
+
+    Order: header, the looked-up experience beside its thumbnail (so the body reads
+    as a comment on it), the description, then the code, the region pings and the
+    scheduler.
     """
     header = header_text(seed)
-    metas = meta_texts(code, roles, user_id)
+    metas = meta_texts(code, roles, user_id, experience)
+    block = experience_block(experience) if experience is not None else None
+    image = experience.image if experience is not None else None
 
-    description = _fit_description(description, [header, *metas])
+    others = [header, *metas] + ([block] if block else [])
+    description = _fit_description(description, others)
 
     children: list[discord.ui.Item] = [
         discord.ui.TextDisplay(header),
         discord.ui.Separator(),
-        discord.ui.TextDisplay(description),
-        discord.ui.Separator(),
     ]
+    if block and image:
+        # The experience is the only block with an image, so it is the one that can
+        # be a section; without an image it stays a plain text display, since a
+        # section must have an accessory.
+        children.append(
+            discord.ui.Section(
+                discord.ui.TextDisplay(block),
+                accessory=discord.ui.Thumbnail(
+                    image, description=experience.name[:256]
+                ),
+            )
+        )
+        children.append(discord.ui.Separator())
+    elif block:
+        children.append(discord.ui.TextDisplay(block))
+        children.append(discord.ui.Separator())
+    children.append(discord.ui.TextDisplay(description))
+    children.append(discord.ui.Separator())
     children.extend(discord.ui.TextDisplay(text) for text in metas)
 
     view = discord.ui.LayoutView(timeout=None)
@@ -228,6 +303,7 @@ async def send_announcement(
     roles: list[discord.Role],
     description: str,
     code: str,
+    experience: Experience | None = None,
 ) -> discord.Message:
     """Post the announcement as a components v2 layout."""
     mentions = discord.AllowedMentions(roles=roles or False)
@@ -240,6 +316,7 @@ async def send_announcement(
         description=description,
         code=code,
         roles=roles,
+        experience=experience,
     )
     message = await channel.send(view=view, allowed_mentions=mentions)
     view = build_announcement_view(
@@ -248,6 +325,7 @@ async def send_announcement(
         description=description,
         code=code,
         roles=roles,
+        experience=experience,
     )
     await message.edit(view=view, allowed_mentions=mentions)
     return message
@@ -259,6 +337,7 @@ async def update_announcement(
     roles: list[discord.Role],
     description: str,
     code: str,
+    experience: Experience | None = None,
 ) -> None:
     """Re-render the announcement in place."""
     view = build_announcement_view(
@@ -267,6 +346,7 @@ async def update_announcement(
         description=description,
         code=code,
         roles=roles,
+        experience=experience,
     )
     # Announcements posted before the layout existed still carry their text in the
     # message content, which has to be cleared in the same request that turns the
