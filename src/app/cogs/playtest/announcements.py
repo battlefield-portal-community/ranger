@@ -92,10 +92,13 @@ ANNOUNCEMENT_TITLES = (
 
 # The container's accent bar, picked by the same seed as the header.
 ANNOUNCEMENT_ACCENTS = (
-    discord.Color.blurple(),
-    discord.Color.gold(),
-    discord.Color.fuchsia(),
-    discord.Color.green(),
+    discord.Color(0x011C26),  # near-black teal
+    discord.Color(0x025159),  # deep teal
+    discord.Color(0x08A696),  # teal
+    discord.Color(0x26FFDF),  # bright cyan
+    discord.Color(0xF26A1B),  # orange
+    discord.Color(0xFF2C10),  # red
+    discord.Color(0xA86FDF),  # violet
 )
 
 
