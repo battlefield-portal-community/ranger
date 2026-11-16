@@ -63,6 +63,37 @@ class Submission:
     interaction_id: str
 
 
+async def _delete_pin_notification(thread: discord.Thread) -> None:
+    """Remove the "pinned a message" system message Discord posts when we pin."""
+    async for message in thread.history(limit=5):
+        if message.type is discord.MessageType.pins_add:
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                log.warning("Failed to delete pin notification in thread %s", thread.id)
+            return
+
+
+async def _pin_update_hint(
+    thread: discord.Thread, interaction: discord.Interaction
+) -> None:
+    """Pin the way to edit the post, so it sits above whatever the thread becomes.
+
+    Best-effort: a forum that refuses the pin or the history read must not cost the
+    reporter their filed post.
+    """
+    mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
+    try:
+        first_message = await thread.send(
+            f"Use {mention} if the post needs fixing.",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        await first_message.pin()
+        await _delete_pin_notification(thread)
+    except discord.HTTPException:
+        log.exception("Couldn't pin the update hint in feedback thread %s", thread.id)
+
+
 async def _reply(
     interaction: discord.Interaction,
     content: str,
@@ -220,11 +251,10 @@ async def file_post(
     await db.index_feedback(thread_id, name, body)
 
     tag_names = ", ".join(f"`{tag.name}`" for tag in applied)
-    mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
+    await _pin_update_hint(result.thread, interaction)
     await _reply(
         interaction,
-        f"Filed: {result.thread.jump_url} · tagged {tag_names}. A mod can retag it.\n"
-        f"Use {mention} in the thread if something needs fixing.",
+        f"Filed: {result.thread.jump_url} · tagged {tag_names}. A mod can retag it.",
     )
 
 

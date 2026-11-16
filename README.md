@@ -64,7 +64,8 @@ filed and the thread's status in SQLite.
   intents) against earlier posts. A likely duplicate offers *Open existing* or *File
   anyway*; filing anyway is written to `feedback_events`.
 - **Editing after filing:** `/update-feedback` in a post's thread reopens that form
-  pre-filled with what was filed. It is available to the reporter and to moderators,
+  pre-filled with what was filed, and the thread's first pinned message names the
+  command so nobody has to guess. It is available to the reporter and to moderators,
   only in a thread Ranger itself started, and only in the forum the post belongs to,
   so a bug can never be rewritten from the feature forum. The submit edits the
   starter message, renames the thread to the new title, rewrites the stored row, and
@@ -88,8 +89,9 @@ filed and the thread's status in SQLite.
 1. Create `📮・submit-feedback`, deny `Send Messages` for `@everyone` so only the
    intake message lives there, and set `FEEDBACK_COG_SETTINGS__MENU_CHANNEL_ID`.
 2. Give the bot View Channel, Send Messages, Create Posts, Read Message History,
-   Attach Files and Embed Links in both forums and in the intake channel, plus
-   `Manage Threads` so `/update-feedback` can rename a post's thread.
+   Attach Files, Embed Links and Manage Messages (to pin the editing hint in a new
+   post's thread) in both forums and in the intake channel, plus `Manage Threads` so
+   `/update-feedback` can rename a post's thread.
 3. Check the forum tags. They are resolved by name, case-insensitively, and both
    forums' real tags are logged at startup so a rename is visible instead of silent:
    - bug forum: `BF6`, `Noted`, `Patched`, `Needs Info`, `Duplicate`, `Editor`,
