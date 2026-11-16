@@ -138,3 +138,27 @@ file — so you can restart the bot however you normally do.
 
 Point `BOT_SETTINGS__GUILD_ID` at the same test server, or the intake message and
 the synced commands belong to another guild.
+
+### Local development with hot reload
+
+`uv run dev` runs the bot like `python -m app` does and watches `src/app` for edits:
+
+```sh
+uv run dev
+```
+
+- **Saving a file under `app/cogs/<name>`** reloads that extension in place. The
+gateway connection, the message caches and the database stay up, so a change to a
+menu, a modal or a command is live in well under a second. `cog_unload` cancels the
+cog's loops, `cog_load` re-registers its persistent views and restarts them, and the
+guild commands are re-synced. A file that fails to import rolls back: the previous
+cog keeps serving and the traceback is logged.
+- **Saving anything else** (`bot.py`, `config.py`, `db.py`, `maps_data.py`, the
+`cogs` package itself) re-executes the process. Module-level state can't be swapped
+under a running bot, so this is a real restart: the pid survives, the connection
+reconnects in a second or two.
+- **`on_ready` is replayed after a reload**, so the menus the cogs ensure are
+repainted immediately instead of at the next colour-cycle tick.
+
+Command registration is rate limited by Discord, so a sync can be skipped under a
+burst of saves and logged as a warning; the next save syncs again.
