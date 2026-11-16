@@ -73,8 +73,9 @@ class FeedbackCog(commands.Cog):
     @cycle_menu_colour.before_loop
     async def before_cycle_menu_colour(self) -> None:
         # The first tick is one interval after ready, so the menu on_ready posts is
-        # the one the cycle edits.
-        await self.wait_until_ready()
+        # the one the cycle edits. ``wait_until_ready`` belongs to the Loop, not to
+        # the cog (a Cog is not a Bot).
+        await self.cycle_menu_colour.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
