@@ -40,6 +40,10 @@ DESCRIPTION_MAX_LENGTH = 3500
 # to 20 for a little headroom.
 MAX_SNOWFLAKE_DIGITS = 20
 
+# A Unix timestamp rendered by Discord as `<t:…:R>` is 10 digits today; 11 covers
+# the year 2286 onwards.
+MAX_TIMESTAMP_DIGITS = 11
+
 # Show at most this many map names inline; the rest collapse into "+N more".
 MAX_MAPS_SHOWN = 8
 
@@ -156,15 +160,24 @@ def meta_texts(
     roles: list[discord.Role],
     user_id: int,
     experience: Experience | None,
+    updated_at: int | None = None,
 ) -> list[str]:
-    """The trailing lines: code/regions, an optional warning, and the footer."""
+    """The trailing lines: code/regions, an optional warning, and the footer.
+
+    ``updated_at`` is an epoch timestamp set by the update flow, so a re-rendered
+    announcement says when it was last changed; a freshly posted one leaves it out.
+    """
     details = [f"**Experience Code:** `{code}`"] if code else []
     details.append(f"**Regions:** {' '.join(r.mention for r in roles) or '—'}")
 
     texts = ["\n".join(details)]
     if code and experience is None:
         texts.append(f"-# ⚠️ Couldn't find experience `{code}` — check the code.")
-    texts.append(f"-# scheduled by **<@{user_id}>**")
+
+    footer = f"-# scheduled by **<@{user_id}>**"
+    if updated_at:
+        footer += f" · last updated <t:{updated_at}:R>"
+    texts.append(footer)
     return texts
 
 
@@ -192,6 +205,7 @@ def announcement_overhead(role_ids: Iterable[int]) -> int:
         + EXPERIENCE_CODE_MAX_LENGTH
     )
     footer_line = len("-# scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
+    footer_line += len(" · last updated <t::R>") + MAX_TIMESTAMP_DIGITS
 
     return _MAX_HEADER_LINE + details + warning_line + footer_line
 
@@ -307,18 +321,20 @@ def build_announcement_view(
     code: str,
     roles: list[discord.Role],
     experience: Experience | None = None,
+    updated_at: int | None = None,
 ) -> discord.ui.LayoutView:
     """Assemble the announcement as a components v2 layout.
 
     ``seed`` drives the header and accent so a playtest keeps the same look across
-    edits; callers pass the message id once the message exists.
+    edits; callers pass the message id once the message exists. ``updated_at`` is
+    set by the update flow and adds the "last updated" stamp to the footer.
 
     Order: header, the looked-up experience beside its thumbnail (so the body reads
     as a comment on it), the description, then the code, the region pings and the
     scheduler, and the Update button last.
     """
     header = header_text(seed)
-    metas = meta_texts(code, roles, user_id, experience)
+    metas = meta_texts(code, roles, user_id, experience, updated_at)
     block = experience_block(experience) if experience is not None else None
     image = experience.image if experience is not None else None
 
@@ -406,8 +422,14 @@ async def update_announcement(
     description: str,
     code: str,
     experience: Experience | None = None,
+    updated_at: int | None = None,
 ) -> None:
-    """Re-render the announcement in place."""
+    """Re-render the announcement in place, stamping when it was last changed."""
+    stamp = (
+        updated_at
+        if updated_at is not None
+        else int(discord.utils.utcnow().timestamp())
+    )
     view = build_announcement_view(
         user_id=user_id,
         seed=message.id,
@@ -415,6 +437,7 @@ async def update_announcement(
         code=code,
         roles=roles,
         experience=experience,
+        updated_at=stamp,
     )
     # Announcements posted before the layout existed still carry their text in the
     # message content, which has to be cleared in the same request that turns the
