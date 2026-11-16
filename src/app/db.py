@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_feedback_status
 CREATE TABLE IF NOT EXISTS feedback_events (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     thread_id INTEGER NOT NULL,
-    -- create | status | dedupe | error
+    -- create | status | dedupe | update | error
     kind      TEXT    NOT NULL,
     actor_id  TEXT    NOT NULL,
     detail    TEXT,
@@ -463,6 +463,18 @@ async def get_feedback(thread_id: int) -> FeedbackPost | None:
         ) as cur:
             row = await cur.fetchone()
     return None if row is None else _row_to_feedback(row)
+
+
+async def update_feedback_post(thread_id: int, *, summary: str, body: str) -> bool:
+    """Replace a filed post's summary and body, reporting whether a row changed."""
+    async with aiosqlite.connect(_path()) as conn:
+        cur = await conn.execute(
+            "UPDATE feedback_posts SET summary = ?, body = ? WHERE thread_id = ?",
+            (summary, body, thread_id),
+        )
+        updated = cur.rowcount > 0
+        await conn.commit()
+    return updated
 
 
 async def set_feedback_status(

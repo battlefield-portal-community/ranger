@@ -160,6 +160,37 @@ def build_body(kind: str, reporter_id: int | str, values: dict[str, str]) -> str
     return body
 
 
+def parse_body(kind: str, body: str) -> dict[str, str]:
+    """Recover one form's field values from an already-filed body.
+
+    The inverse of :func:`_render`, so the update modal can open with what the
+    reporter actually filed. Sections are found by their own headings; a heading
+    that is missing (a post filed under older labels, a report seeded from an
+    export) comes back as an empty string, which the modal shows as a blank field
+    rather than refusing to open.
+    """
+    headings = {
+        f"**{field.label}:**": field.key for field in fields(kind) if field.in_body
+    }
+    values = {field.key: "" for field in fields(kind)}
+    current: str | None = None
+    lines: list[str] = []
+    for line in body.removeprefix(_LEADING_BLANK).splitlines():
+        if line in headings:
+            if current is not None:
+                values[current] = "\n".join(lines).strip()
+            current = headings[line]
+            lines = []
+        elif line.startswith(_SUBTEXT):
+            # The credit line closes the body; nothing after it belongs to a field.
+            break
+        elif current is not None:
+            lines.append(line)
+    if current is not None:
+        values[current] = "\n".join(lines).strip()
+    return values
+
+
 def thread_name(summary: str) -> str:
     """The thread title derived from the summary: one line, capped at 100 chars."""
     return " ".join(summary.split())[:THREAD_NAME_LIMIT]

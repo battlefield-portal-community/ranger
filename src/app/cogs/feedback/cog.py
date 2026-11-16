@@ -1,16 +1,18 @@
-"""The feedback cog: the intake menu message and the thread tag mirror."""
+"""The feedback cog: the intake menu message, ``/update-feedback`` and the tag
+mirror."""
 
 from __future__ import annotations
 
 import logging
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
-from ... import db
+from ... import db, permissions
 from . import forms, tags
 from . import settings as feedback_settings
-from .ui import FeedbackMenuView
+from .ui import FeedbackMenuView, UpdateFeedbackModal
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +105,91 @@ class FeedbackCog(commands.Cog):
                 log.info(tags.tag_report(forum, kind))
             else:
                 log.warning("Feedback forum %s is not in the channel cache", forum_id)
+
+    @app_commands.command(
+        name="update-feedback",
+        description="Update the feedback post this thread was started with",
+    )
+    async def update_feedback(self, interaction: discord.Interaction) -> None:
+        channel = interaction.channel
+        if not isinstance(channel, discord.Thread):
+            await interaction.response.send_message(
+                "This command can only be used in a thread", ephemeral=True
+            )
+            return
+
+        config = feedback_settings.configured()
+        if config is None:
+            await interaction.response.send_message(
+                "The feedback cog is not configured; ping a mod.", ephemeral=True
+            )
+            return
+
+        parent = channel.parent
+        if parent is None or parent.id not in (
+            config.BUG_FORUM_ID,
+            config.FEATURE_FORUM_ID,
+        ):
+            await interaction.response.send_message(
+                "This thread is not a feedback thread", ephemeral=True
+            )
+            return
+
+        post = await db.get_feedback(channel.id)
+        if post is None:
+            await interaction.response.send_message(
+                "This post wasn't filed by Ranger", ephemeral=True
+            )
+            return
+
+        # A bug post is edited in the bug forum and a feature post in the feature
+        # forum, never one from the other.
+        if not isinstance(parent, discord.ForumChannel) or parent.id != post.forum_id:
+            await interaction.response.send_message(
+                "This post belongs in another forum", ephemeral=True
+            )
+            return
+
+        # A forum post's starter message shares its id with the thread.
+        try:
+            starter = await channel.fetch_message(channel.id)
+        except discord.NotFound:
+            log.warning("Starter message for feedback thread %s not found", channel.id)
+            await interaction.response.send_message(
+                "Post message not found", ephemeral=True
+            )
+            return
+        except discord.Forbidden:
+            log.warning("Not allowed to read feedback thread %s", channel.id)
+            await interaction.response.send_message(
+                "I don't have permission to read that post", ephemeral=True
+            )
+            return
+        except discord.HTTPException:
+            log.exception("Failed to fetch feedback post %s", channel.id)
+            await interaction.response.send_message(
+                "Failed to fetch that post", ephemeral=True
+            )
+            return
+
+        # Only posts Ranger itself started may be edited, whatever the row says.
+        if self.bot.user is None or starter.author.id != self.bot.user.id:
+            await interaction.response.send_message(
+                "This thread was not started by Ranger", ephemeral=True
+            )
+            return
+
+        # Only the original reporter or a moderator may update the post.
+        is_reporter = str(interaction.user.id) == post.reporter_id
+        if not (is_reporter or permissions.is_moderator(interaction.user)):
+            await interaction.response.send_message(
+                "Only the post's reporter or a moderator can update it", ephemeral=True
+            )
+            return
+
+        await interaction.response.send_modal(
+            UpdateFeedbackModal(post, parent, channel, starter)
+        )
 
     async def ensure_menu_message(self) -> None:
         """Post the intake menu once, or edit the stored one on restart."""
