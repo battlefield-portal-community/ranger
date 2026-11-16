@@ -34,6 +34,13 @@ a reporter presses a button, fills a modal and nothing else. Ranger files the po
 in the right forum, applies the tags, and records who reported it, the body it
 filed and the thread's status in SQLite.
 
+- **The intake message** is a Components v2 layout, not an embed: a title, then a
+  section per form — a question and a line of guidance, with the button beside them
+  — divided by separators, and a small footer naming the bot that files the post.
+  A "Rules and info" section that opens a rules modal is planned for v1.1. The
+  container's accent bar cycles blurple → green → gold → red → fuchsia every
+  `MENU_COLOUR_CYCLE_SECONDS`, starting from blurple on each restart; the colour is
+  part of the payload, so each change is one message edit.
 - **Bug form:** Title · What happened · Steps to reproduce · Tags · optional media.
 - **Feature form:** Title · Your request · How it helps · Tags · optional media.
   The free-text fields say markdown is supported, because it reaches the post as-is,
@@ -85,6 +92,7 @@ filed and the thread's status in SQLite.
 | `FEEDBACK_COG_SETTINGS__FEATURE_FORUM_ID` | `1006491137441276005` | Feature forum. |
 | `FEEDBACK_COG_SETTINGS__DEFAULT_GAME_TAG` | `BF6` | Game tag stamped on every post. |
 | `FEEDBACK_COG_SETTINGS__MAX_UPLOAD_FILES` | `5` | Upload slots offered in the form; Discord's own maximum is 10. |
+| `FEEDBACK_COG_SETTINGS__MENU_COLOUR_CYCLE_SECONDS` | `300` | Seconds between accent-colour changes on the intake message. `0` pins the accent to blurple and stops the bot re-editing the message. |
 
 ### Discord setup (manual, once)
 

@@ -133,3 +133,6 @@ dmypy.json
 .pyre/
 .idea/
 .claude/
+
+# Agent working notes (plan mode scratch plans)
+plan/

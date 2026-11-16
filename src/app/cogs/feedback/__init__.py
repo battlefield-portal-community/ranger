@@ -13,7 +13,8 @@ The package is laid out as:
 - :mod:`.tags` — the forum tag vocabulary and the status derivation.
 - :mod:`.forms` — the field limits, the starter-message body and its inverse.
 - :mod:`.dedupe` — the FTS5 preflight and the deferred-submit map.
-- :mod:`.ui` — the modals, the persistent menu view and the duplicate prompt.
+- :mod:`.ui` — the modals, the persistent menu view (a Components v2 layout, one
+  block per form) and the duplicate prompt.
 """
 
 from .cog import FeedbackCog, setup

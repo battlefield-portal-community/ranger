@@ -7,12 +7,12 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from ... import db, permissions
 from . import forms, tags
 from . import settings as feedback_settings
-from .ui import FeedbackMenuView, UpdateFeedbackModal
+from .ui import FeedbackMenuView, UpdateFeedbackModal, menu_colour
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,11 @@ class FeedbackCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self._menu_ensured = False
+        # Position in MENU_COLOURS: 0 on every start, so the first paint is blurple.
+        self._menu_colour = 0
+
+    async def cog_unload(self) -> None:
+        self.cycle_menu_colour.cancel()
 
     async def cog_load(self) -> None:
         if feedback_settings.configured() is None:
@@ -34,7 +39,9 @@ class FeedbackCog(commands.Cog):
                 "is not set"
             )
             return
-        # Re-register the persistent view so the buttons keep working after a restart.
+        # Re-register the persistent view so the buttons keep working after a
+        # restart. They are section accessories in the v2 layout, and those are
+        # dispatched the same way as any other persistent button.
         self.bot.add_view(FeedbackMenuView())
         for kind in ("bug", "feature"):
             if not forms.limits_fit(kind):
@@ -44,6 +51,30 @@ class FeedbackCog(commands.Cog):
                     kind,
                     forms.DISCORD_MESSAGE_LIMIT,
                 )
+        cycle = feedback_settings.settings().MENU_COLOUR_CYCLE_SECONDS
+        if cycle > 0:
+            self.cycle_menu_colour.change_interval(seconds=cycle)
+            self.cycle_menu_colour.start()
+
+    @tasks.loop(minutes=5)
+    async def cycle_menu_colour(self) -> None:
+        """Repaint the menu with the next accent colour.
+
+        The colour lives in the message payload, so a change costs one edit. The
+        interval comes from settings (``change_interval`` in ``cog_load``); a failed
+        repaint is logged rather than killing the loop, and the next tick retries.
+        """
+        self._menu_colour += 1
+        try:
+            await self.ensure_menu_message()
+        except Exception:
+            log.exception("Failed to repaint the feedback menu message")
+
+    @cycle_menu_colour.before_loop
+    async def before_cycle_menu_colour(self) -> None:
+        # The first tick is one interval after ready, so the menu on_ready posts is
+        # the one the cycle edits.
+        await self.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -192,7 +223,7 @@ class FeedbackCog(commands.Cog):
         )
 
     async def ensure_menu_message(self) -> None:
-        """Post the intake menu once, or edit the stored one on restart."""
+        """Post the intake menu, edit the stored one, or repaint it on the cycle."""
         channel_id = feedback_settings.settings().MENU_CHANNEL_ID
         channel = self.bot.get_channel(channel_id) or await self.bot.fetch_channel(
             channel_id
@@ -201,22 +232,15 @@ class FeedbackCog(commands.Cog):
             log.error("Feedback menu channel %s is not a text channel", channel_id)
             return
 
-        # on_ready is the only caller, so the bot already knows its own user.
+        # The menu is a components v2 layout, so it carries no embed and no
+        # content: the title is a text display inside the container. on_ready is the
+        # only caller, so the bot already knows its own user by now.
         bot_user = self.bot.user
-        mention = bot_user.mention if bot_user is not None else "This bot"
-        embed = discord.Embed(
-            title="📮 Submit Feedback",
-            description=(
-                f"Press a button and fill in the form. {mention} will file your post "
-                "in the right forum with the right tags and answer with a link.\n"
-                "Search the forum first: there may already be an open bug report or "
-                "feature request for it.\n"
-                "A moderator replies in that thread, so keep an eye on it."
-            ),
-            color=discord.Color.blurple(),
+        mention = bot_user.mention if bot_user is not None else "The bot"
+        view = FeedbackMenuView(
+            bot_mention=mention, accent=menu_colour(self._menu_colour)
         )
-        view = FeedbackMenuView()
-        # The bot names itself; nobody needs pinging, least of all itself, and the
+        # Nobody needs pinging, least of all the bot named in the footer, and the
         # message is edited on every restart.
         no_pings = discord.AllowedMentions.none()
 
@@ -224,7 +248,15 @@ class FeedbackCog(commands.Cog):
         if stored:
             try:
                 message = await channel.fetch_message(int(stored))
-                await message.edit(embed=embed, view=view, allowed_mentions=no_pings)
+                # content and embed are passed explicitly: a v2 message can carry
+                # neither, so the old embed has to go in the same edit that turns
+                # this message into a layout.
+                await message.edit(
+                    content=None,
+                    embed=None,
+                    view=view,
+                    allowed_mentions=no_pings,
+                )
                 log.info("Refreshed the feedback menu message %s", stored)
                 return
             except discord.NotFound:
@@ -232,7 +264,7 @@ class FeedbackCog(commands.Cog):
                     "Stored feedback menu message %s is gone; posting a new one", stored
                 )
 
-        message = await channel.send(embed=embed, view=view, allowed_mentions=no_pings)
+        message = await channel.send(view=view, allowed_mentions=no_pings)
         await db.set_state(MENU_STATE_KEY, str(message.id))
         log.info("Posted the feedback menu message %s", message.id)
 
