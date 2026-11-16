@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # Optional so an image carrying the feedback cog can ship before the
     # deployment env names a menu channel; the cog stays inert until it is set.
     FEEDBACK_COG_SETTINGS: FeedbackCogSettings | None = None
+    # The commit the running image was built from, handed over by the publish
+    # workflow as a plain ``COMMIT_ID`` env var. Unset locally, in which case the
+    # bot's presence carries no version text.
+    COMMIT_ID: str | None = None
 
 
 # Global singleton imported across the project.

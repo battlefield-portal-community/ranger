@@ -25,6 +25,24 @@ log = logging.getLogger(__name__)
 
 COGS_DIR = Path(__file__).parent / "cogs"
 
+# Characters of COMMIT_ID shown in the presence; the length git itself abbreviates to.
+SHORT_SHA_LENGTH = 7
+
+
+def version_activity() -> discord.Activity | None:
+    """The presence activity naming the deployed commit, if one was provided.
+
+    ``COMMIT_ID`` comes from the publish workflow and is absent in local runs; then
+    the activity is ``None`` and the presence simply carries no version text.
+    """
+    commit = (env.COMMIT_ID or "").strip()
+    if not commit:
+        return None
+    return discord.Activity(
+        type=discord.ActivityType.playing,
+        name=f"On commit {commit[:SHORT_SHA_LENGTH]}",
+    )
+
 
 class Ranger(commands.Bot):
     def __init__(self, **options) -> None:
@@ -99,5 +117,7 @@ class Ranger(commands.Bot):
 
     async def on_ready(self) -> None:
         user = self.user
-        await self.change_presence(status=discord.Status.online)
+        await self.change_presence(
+            status=discord.Status.online, activity=version_activity()
+        )
         log.info("Logged in as %s (id=%s)", user, user.id if user else "?")
