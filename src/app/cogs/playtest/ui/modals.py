@@ -193,7 +193,10 @@ class NewPlaytestModal(PlaytestModal):
         )[:100]
         thread: discord.Thread = await message.create_thread(name=thread_name)
         mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
-        first_message = await thread.send(f"Use {mention} to update the playtest.")
+        first_message = await thread.send(
+            "Use the **Update Playtest** button on the announcement above, "
+            f"or {mention} here, to change the playtest."
+        )
         await first_message.pin()
         await _delete_pin_notification(thread)
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
