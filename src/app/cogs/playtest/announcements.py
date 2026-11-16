@@ -27,6 +27,9 @@ EXPERIENCE_CODE_MAX_LENGTH = 6
 # to 20 for a little headroom.
 MAX_SNOWFLAKE_DIGITS = 20
 
+# Epoch seconds fit in 10-11 digits for any realistic date; 12 gives headroom.
+MAX_EPOCH_DIGITS = 12
+
 # Emoji and title pools for the announcement header. One of each is picked
 # independently but deterministically per playtest (seeded on the announcement
 # message id) so the header stays stable across edits.
@@ -102,11 +105,20 @@ def announcement_overhead(role_ids: Iterable[int]) -> int:
 
     footer_line = len("-# scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
 
-    # 7 lines at most (header, blank, description, blank, code, regions, footer)
-    # joined by "\n".
-    newlines = 6
+    starts_line = len("**Starts:** <t::F> (<t::R>)") + 2 * MAX_EPOCH_DIGITS
 
-    return _MAX_HEADER_LINE + code_line + regions_line + footer_line + newlines
+    # 8 lines at most (header, blank, description, blank, starts, code, regions,
+    # footer) joined by "\n".
+    newlines = 7
+
+    return (
+        _MAX_HEADER_LINE
+        + code_line
+        + regions_line
+        + footer_line
+        + starts_line
+        + newlines
+    )
 
 
 def description_char_budget(role_ids: Iterable[int]) -> int:
@@ -134,6 +146,7 @@ async def build_announcement_message(
     description: str,
     code: str,
     roles: list[discord.Role],
+    scheduled_at: int | None = None,
 ) -> list[str]:
     lines = [
         f"# {pick_announcement_header(seed)}",
@@ -141,6 +154,8 @@ async def build_announcement_message(
         description,
         "",
     ]
+    if scheduled_at:
+        lines.append(f"**Starts:** <t:{scheduled_at}:F> (<t:{scheduled_at}:R>)")
     if code:
         lines.append(f"**Experience Code:** `{code}`")
     lines.append(f"**Regions:** {' '.join(r.mention for r in roles) or '—'}")
@@ -154,16 +169,19 @@ async def send_announcement(
     roles: list[discord.Role],
     description: str,
     code: str,
+    scheduled_at: int | None = None,
 ) -> discord.Message:
     """Post the announcement as a plain text message (no embed)."""
     mentions = discord.AllowedMentions(roles=roles or False)
     # Post first so the message exists (its id also becomes the id of the thread
     # created from it), then re-render the header seeded on that id for a stable,
     # per-playtest header. Editing does not re-ping the roles.
-    lines = await build_announcement_message(user_id, user_id, description, code, roles)
+    lines = await build_announcement_message(
+        user_id, user_id, description, code, roles, scheduled_at
+    )
     message = await channel.send(content="\n".join(lines), allowed_mentions=mentions)
     lines = await build_announcement_message(
-        user_id, message.id, description, code, roles
+        user_id, message.id, description, code, roles, scheduled_at
     )
     await message.edit(content="\n".join(lines), allowed_mentions=mentions)
     return message
@@ -175,11 +193,12 @@ async def update_announcement(
     roles: list[discord.Role],
     description: str,
     code: str,
+    scheduled_at: int | None = None,
 ) -> None:
     """Edit the announcement to include the new details."""
 
     lines = await build_announcement_message(
-        user_id, message.id, description, code, roles
+        user_id, message.id, description, code, roles, scheduled_at
     )
     await message.edit(
         content="\n".join(lines),
