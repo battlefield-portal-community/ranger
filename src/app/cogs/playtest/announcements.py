@@ -112,8 +112,33 @@ def pick_announcement_header(seed: int) -> str:
 
 
 def pick_accent(seed: int) -> discord.Color:
-    """Deterministically pick the container accent colour."""
+    """Deterministically pick the container accent colour for a first render."""
     return ANNOUNCEMENT_ACCENTS[seed % len(ANNOUNCEMENT_ACCENTS)]
+
+
+def current_accent(message: discord.Message) -> discord.Color | None:
+    """The accent already on an announcement, or ``None`` if it has no container.
+
+    Announcements posted before the container existed are still plain text, and an
+    edited message carries the components of its last render, so this is read back
+    off the message rather than remembered.
+    """
+    for component in message.components:
+        if isinstance(component, discord.components.Container):
+            return component.accent_colour
+    return None
+
+
+def next_accent(current: discord.Color | None) -> discord.Color:
+    """The palette entry after ``current``, wrapping around.
+
+    Updates walk the palette instead of reseeding, so every save visibly changes the
+    bar; reseeding would repeat the same colour one time in seven.
+    """
+    if current not in ANNOUNCEMENT_ACCENTS:
+        return ANNOUNCEMENT_ACCENTS[0]
+    index = ANNOUNCEMENT_ACCENTS.index(current)
+    return ANNOUNCEMENT_ACCENTS[(index + 1) % len(ANNOUNCEMENT_ACCENTS)]
 
 
 def header_text(seed: int) -> str:
@@ -324,13 +349,15 @@ def build_announcement_view(
     code: str,
     roles: list[discord.Role],
     experience: Experience | None = None,
+    accent: discord.Color | None = None,
     updated_at: int | None = None,
 ) -> discord.ui.LayoutView:
     """Assemble the announcement as a components v2 layout.
 
     ``seed`` drives the header and accent so a playtest keeps the same look across
-    edits; callers pass the message id once the message exists. ``updated_at`` is
-    set by the update flow and adds the "last updated" stamp to the footer.
+    edits; callers pass the message id once the message exists. ``accent`` overrides
+    the seed-derived colour, which the update flow uses to walk the palette.
+    ``updated_at`` is set by the update flow and adds the "last updated" stamp.
 
     Order: header, the looked-up experience beside its thumbnail (so the body reads
     as a comment on it), the description, then the code, the region pings and the
@@ -371,7 +398,10 @@ def build_announcement_view(
 
     view = discord.ui.LayoutView(timeout=None)
     view.add_item(
-        discord.ui.Container(*children, accent_colour=pick_accent(seed)),
+        discord.ui.Container(
+            *children,
+            accent_colour=accent if accent is not None else pick_accent(seed),
+        ),
     )
 
     count = sum(1 for _ in view.walk_children())
@@ -440,6 +470,7 @@ async def update_announcement(
         code=code,
         roles=roles,
         experience=experience,
+        accent=next_accent(current_accent(message)),
         updated_at=stamp,
     )
     # Announcements posted before the layout existed still carry their text in the
