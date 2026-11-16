@@ -18,19 +18,18 @@ THREAD_NAME_LIMIT = 100
 # A Discord snowflake is a 64-bit int, so the reporter mention is at most 19 digits.
 MAX_SNOWFLAKE_DIGITS = 19
 
-# Discord prints the posting application's name inline with the first line of a
-# message, so a body starting on the first line is glued to "Ranger". A leading
-# empty line pushes it down; Discord trims whitespace, so the blank line is a
-# zero-width space, which it does not trim.
-_LEADING_BLANK = "\u200b\n"
-
-# Discord's subtext markdown, so the reporter credit reads as a footnote under the
-# report instead of competing with it.
+# Discord's subtext markdown, so the reporter credit reads as a footnote instead of
+# competing with the report.
 _SUBTEXT = "-# "
 
-# The credit line closing every body. The same for both kinds, so the fixed overhead
-# stays identical and the field budgets below stay predictable.
-_REPORTER_VERB = "Reported by"
+# The credit line opening every body: what it calls the post, per kind, so the first
+# line a forum listing previews says both what was filed and who filed it. The same
+# wording for every post of a kind, so the fixed overhead stays predictable.
+_CREDIT_NOUN = {"bug": "Bug report", "feature": "Feature request"}
+
+# Bodies filed before the credit was reworded still say this; :func:`parse_body` skips
+# it too, so an older post reopens with its fields intact.
+_LEGACY_CREDIT = f"{_SUBTEXT}Reported by "
 
 
 @dataclass(frozen=True)
@@ -110,6 +109,11 @@ def field_limits(kind: str) -> dict[str, int]:
     return {field.key: field.limit for field in fields(kind)}
 
 
+def _credit_prefix(kind: str) -> str:
+    """How this kind's credit line opens, so the parser can recognise it."""
+    return f"{_SUBTEXT}{_CREDIT_NOUN[kind]} by "
+
+
 def _render(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
     # The game is only in the applied tags now, so it is not repeated in the body.
     sections = [
@@ -117,8 +121,11 @@ def _render(kind: str, reporter_id: int | str, values: dict[str, str]) -> str:
         for field in fields(kind)
         if field.in_body and values[field.key].strip()
     ]
-    sections.append(f"{_SUBTEXT}{_REPORTER_VERB} <@{reporter_id}>")
-    return _LEADING_BLANK + "\n\n".join(sections)
+    # The credit opens the body: a forum listing previews the starter message's first
+    # line, so the reporter is the name a reader sees on the card. A blank line keeps
+    # the post itself separate from that line.
+    credit = f"{_SUBTEXT}{_CREDIT_NOUN[kind]} by <@{reporter_id}>"
+    return "\n\n".join([credit, *sections])
 
 
 def body_overhead(kind: str) -> int:
@@ -175,15 +182,16 @@ def parse_body(kind: str, body: str) -> dict[str, str]:
     values = {field.key: "" for field in fields(kind)}
     current: str | None = None
     lines: list[str] = []
-    for line in body.removeprefix(_LEADING_BLANK).splitlines():
+    for line in body.splitlines():
         if line in headings:
             if current is not None:
                 values[current] = "\n".join(lines).strip()
             current = headings[line]
             lines = []
-        elif line.startswith(_SUBTEXT):
-            # The credit line closes the body; nothing after it belongs to a field.
-            break
+        elif line.startswith((_credit_prefix(kind), _LEGACY_CREDIT)):
+            # The credit line carries no field text. It opens the body now, and closed
+            # it when it was written last, so either way it is skipped, not a break.
+            continue
         elif current is not None:
             lines.append(line)
     if current is not None:
