@@ -1,8 +1,9 @@
-"""The intake modals: the bug and feature forms, and the filing itself.
+"""The intake and edit modals: the bug and feature forms, and the filing itself.
 
-Both forms share :class:`FeedbackModal`, which builds its inputs from
+Both intake forms share :class:`FeedbackModal`, which builds its inputs from
 :mod:`..forms` and files the post through :func:`file_post`. The submit order is the
 part that has to be right, and is documented on :meth:`FeedbackModal.on_submit`.
+:class:`UpdateFeedbackModal` reuses the same inputs to edit an already-filed post.
 """
 
 from __future__ import annotations
@@ -28,6 +29,23 @@ MAX_UPLOAD_FILES = 10
 
 # A forum thread can carry at most this many tags, applied_tags included.
 MAX_APPLIED_TAGS = 5
+
+# Name of the slash command users run inside a thread to edit their own post.
+# Defined in the cog; kept as a literal here to avoid a circular import.
+UPDATE_COMMAND_NAME = "update-feedback"
+
+
+async def _command_mention(interaction: discord.Interaction, name: str) -> str:
+    """Return a clickable command mention (``</name:id>``), or ``/name`` on failure."""
+    try:
+        commands = await interaction.client.tree.fetch_commands(guild=interaction.guild)
+    except discord.HTTPException:
+        log.warning("Couldn't fetch commands to mention %r", name)
+        return f"/{name}"
+    for command in commands:
+        if command.name == name:
+            return command.mention
+    return f"/{name}"
 
 
 @dataclass
@@ -202,14 +220,21 @@ async def file_post(
     await db.index_feedback(thread_id, name, body)
 
     tag_names = ", ".join(f"`{tag.name}`" for tag in applied)
+    mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
     await _reply(
         interaction,
-        f"Filed: {result.thread.jump_url} · tagged {tag_names}. A mod can retag it.",
+        f"Filed: {result.thread.jump_url} · tagged {tag_names}. A mod can retag it.\n"
+        f"Use {mention} in the thread if something needs fixing.",
     )
 
 
 class FeedbackModal(discord.ui.Modal):
-    """Base for the two intake forms; subclasses set :attr:`kind` and the title."""
+    """Base for the intake forms and the update form.
+
+    Subclasses set :attr:`kind` and the title. The tag picker and the upload are
+    intake-only, so ``editable`` leaves them out: a post's tags are changed with
+    Discord's own "Edit Tags", and attachments cannot be edited at all.
+    """
 
     kind: str
     modal_title = "Feedback"
@@ -218,13 +243,16 @@ class FeedbackModal(discord.ui.Modal):
         self,
         forum: discord.ForumChannel,
         *,
-        filesize_mb: int,
-        max_files: int,
+        filesize_mb: int = 0,
+        max_files: int = 0,
+        defaults: dict[str, str] | None = None,
+        editable: bool = False,
     ) -> None:
         super().__init__(title=self.modal_title)
         self.forum = forum
         self._inputs: dict[str, discord.ui.TextInput] = {}
         self.tag_select: discord.ui.Select | None = None
+        self.media: discord.ui.FileUpload | None = None
 
         for form_field in forms.fields(self.kind):
             assert len(form_field.label) <= MAX_LABEL_TEXT, form_field.label
@@ -239,6 +267,8 @@ class FeedbackModal(discord.ui.Modal):
                 ),
                 required=form_field.required,
                 max_length=form_field.limit,
+                # What the reporter filed, when this modal reopens an existing post.
+                default=None if defaults is None else defaults.get(form_field.key),
             )
             self._inputs[form_field.key] = text_input
             self.add_item(
@@ -248,6 +278,9 @@ class FeedbackModal(discord.ui.Modal):
                     component=text_input,
                 )
             )
+
+        if editable:
+            return
 
         # Added before the upload so the optional picker is the last thing a
         # reporter has to think about.
@@ -316,7 +349,7 @@ class FeedbackModal(discord.ui.Modal):
                 reporter_id=interaction.user.id,
                 fields=self._values(),
                 tag_ids=self._tag_ids(),
-                media=list(self.media.values),
+                media=[] if self.media is None else list(self.media.values),
                 interaction_id=str(interaction.id),
             ),
         )
@@ -334,6 +367,90 @@ class FeatureRequestModal(FeedbackModal):
 
     kind = "feature"
     modal_title = "Request a Feature"
+
+
+class UpdateFeedbackModal(FeedbackModal):
+    """The edit form: the filed post's own fields, pre-filled, nothing else.
+
+    The body is rebuilt with the *original* reporter's id, so an edit by a mod does
+    not quietly transfer the report to them.
+    """
+
+    EDIT_TITLES = {"bug": "Update Bug Report", "feature": "Update Feature Request"}
+
+    def __init__(
+        self,
+        post: db.FeedbackPost,
+        forum: discord.ForumChannel,
+        thread: discord.Thread,
+        starter: discord.Message,
+    ) -> None:
+        # Set before ``super()``: the base reads both when it builds the modal.
+        self.kind = post.kind
+        self.modal_title = self.EDIT_TITLES.get(post.kind, "Update Feedback")
+        self.post = post
+        self.thread = thread
+        self.starter = starter
+
+        defaults = forms.parse_body(post.kind, post.body)
+        # The title names the thread, so it is not in the body and is stored apart.
+        defaults["summary"] = post.summary
+        super().__init__(forum, defaults=defaults, editable=True)
+
+    def _reporter_mentions(self) -> discord.AllowedMentions:
+        """Allow only the credit line's ping, as the intake does.
+
+        The stored reporter is not always a snowflake (a seeded export can carry
+        ``0``), and a body without a valid mention pings nobody anyway.
+        """
+        if not self.post.reporter_id.isdigit() or int(self.post.reporter_id) == 0:
+            return discord.AllowedMentions.none()
+        return discord.AllowedMentions(
+            everyone=False,
+            roles=False,
+            users=[discord.Object(id=int(self.post.reporter_id))],
+        )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        # Editing the starter message and renaming the thread outlast the 3 s window.
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        values = self._values()
+        try:
+            body = forms.build_body(self.kind, self.post.reporter_id, values)
+            name = forms.thread_name(values["summary"])
+        except KeyError, ValueError:
+            log.exception("The %s update does not fit its message budget", self.kind)
+            await _reply(interaction, "That doesn't fit the post; ping a mod.")
+            return
+
+        if body == self.post.body and name == self.post.summary:
+            await _reply(interaction, "Nothing changed.")
+            return
+
+        # The title first: if the name is rejected, the post is left untouched.
+        if name != self.thread.name:
+            try:
+                await self.thread.edit(name=name)
+            except discord.HTTPException:
+                log.exception("Couldn't rename feedback thread %s", self.thread.id)
+                await _reply(interaction, "Couldn't rename the thread; ping a mod.")
+                return
+
+        try:
+            await self.starter.edit(
+                content=body, allowed_mentions=self._reporter_mentions()
+            )
+        except discord.HTTPException:
+            log.exception("Couldn't edit feedback post %s", self.thread.id)
+            await _reply(interaction, "Couldn't edit the post; ping a mod.")
+            return
+
+        if not await db.update_feedback_post(self.thread.id, summary=name, body=body):
+            log.warning("Feedback post %s is gone from the database", self.thread.id)
+        await db.index_feedback(self.thread.id, name, body)
+        await db.log_feedback_event(self.thread.id, "update", interaction.user.id, name)
+        await _reply(interaction, "✅ Feedback updated!")
 
 
 def build_modal(

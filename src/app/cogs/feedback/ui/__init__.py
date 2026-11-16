@@ -5,6 +5,7 @@ from .modals import (
     FeatureRequestModal,
     FeedbackModal,
     Submission,
+    UpdateFeedbackModal,
     build_modal,
     file_post,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "FeedbackMenuView",
     "FeedbackModal",
     "Submission",
+    "UpdateFeedbackModal",
     "build_modal",
     "file_post",
 ]
