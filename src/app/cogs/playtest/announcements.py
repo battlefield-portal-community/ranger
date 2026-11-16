@@ -174,9 +174,9 @@ def meta_texts(
     if code and experience is None:
         texts.append(f"-# ⚠️ Couldn't find experience `{code}` — check the code.")
 
-    footer = f"-# scheduled by **<@{user_id}>**"
+    footer = f"-# playtest scheduled by **<@{user_id}>**"
     if updated_at:
-        footer += f" · last updated <t:{updated_at}:R>"
+        footer += f" and last updated <t:{updated_at}:R>"
     texts.append(footer)
     return texts
 
@@ -204,8 +204,8 @@ def announcement_overhead(role_ids: Iterable[int]) -> int:
         len("-# ⚠️ Couldn't find experience `` — check the code.")
         + EXPERIENCE_CODE_MAX_LENGTH
     )
-    footer_line = len("-# scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
-    footer_line += len(" · last updated <t::R>") + MAX_TIMESTAMP_DIGITS
+    footer_line = len("-# playtest scheduled by **<@>**") + MAX_SNOWFLAKE_DIGITS
+    footer_line += len(" and last updated <t::R>") + MAX_TIMESTAMP_DIGITS
 
     return _MAX_HEADER_LINE + details + warning_line + footer_line
 
