@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from ... import db, permissions
 from ...config import env
-from .announcements import get_announcement_channel
+from .announcements import build_update_button_view, get_announcement_channel
 from .ui import PlaytestMenuView, UpdatePlaytestModal, build_playtest_modal
 
 log = logging.getLogger(__name__)
@@ -24,8 +24,12 @@ class PlaytestCog(commands.Cog):
         self._menu_ensured = False
 
     async def cog_load(self) -> None:
-        # Re-register the persistent view so the button keeps working after a restart.
+        # Re-register the persistent views so their buttons keep working after a
+        # restart: the menu button in the scheduler channel, and the Update button
+        # inside every already-posted announcement. The announcement view's body is
+        # thrown away; only its custom_id to callback mapping is stored.
         self.bot.add_view(PlaytestMenuView())
+        self.bot.add_view(build_update_button_view())
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:

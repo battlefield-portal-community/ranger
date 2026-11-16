@@ -7,7 +7,6 @@ implement the "schedule" and "edit" submit flows respectively.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 import discord
@@ -21,22 +20,13 @@ from ..announcements import (
     send_announcement,
     update_announcement,
 )
-from ..experience import post_experience_embed
+from ..experience import fetch_experience
 
 log = logging.getLogger(__name__)
 
 # Name of the slash command users run inside a thread to edit their playtest.
 # Defined in the cog; kept as a literal here to avoid a circular import.
 UPDATE_COMMAND_NAME = "update-playtest"
-
-background_tasks: set[asyncio.Task] = set()
-
-
-def spawn_task(coro) -> None:
-    """Run a coroutine as a tracked fire-and-forget background task."""
-    task = asyncio.create_task(coro)
-    background_tasks.add(task)
-    task.add_done_callback(background_tasks.discard)
 
 
 async def _command_mention(interaction: discord.Interaction, name: str) -> str:
@@ -188,8 +178,13 @@ class NewPlaytestModal(PlaytestModal):
             )
             return
 
+        # The announcement shows the experience details, so the lookup has to
+        # happen before the message is posted. It hits the network (10s timeout)
+        # but the interaction is already deferred, so nothing times out.
+        experience = await fetch_experience(code) if code else None
+
         message = await send_announcement(
-            interaction.user.id, channel, roles, description, code
+            interaction.user.id, channel, roles, description, code, experience
         )
         thread_name = (
             f"Playtest {code}"
@@ -198,7 +193,10 @@ class NewPlaytestModal(PlaytestModal):
         )[:100]
         thread: discord.Thread = await message.create_thread(name=thread_name)
         mention = await _command_mention(interaction, UPDATE_COMMAND_NAME)
-        first_message = await thread.send(f"Use {mention} to update the playtest.")
+        first_message = await thread.send(
+            "Use the **Update Playtest** button on the announcement above, "
+            f"or {mention} here, to change the playtest."
+        )
         await first_message.pin()
         await _delete_pin_notification(thread)
         note = f"\n⚠️ Couldn't find role(s) for: {', '.join(missing)}" if missing else ""
@@ -212,11 +210,6 @@ class NewPlaytestModal(PlaytestModal):
             description=description,
             code=code,
         )
-
-        # The experience lookup hits the network and can be slow, so run it after
-        # the scheduling flow has fully finished rather than blocking on_submit.
-        if code:
-            spawn_task(post_experience_embed(thread, code))
 
 
 class UpdatePlaytestModal(PlaytestModal):
@@ -263,8 +256,12 @@ class UpdatePlaytestModal(PlaytestModal):
 
         roles, missing = self._resolve_roles(interaction.guild, selected)
 
+        # Re-look the experience up so the announcement's details (likes, maps,
+        # updated) stay current, and so changing the code swaps the thumbnail.
+        experience = await fetch_experience(code) if code else None
+
         await update_announcement(
-            self._scheduler_id, self._message, roles, description, code
+            self._scheduler_id, self._message, roles, description, code, experience
         )
         await db.set_playtest(
             user_id=self._scheduler_id,
