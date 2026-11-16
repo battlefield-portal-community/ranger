@@ -17,12 +17,16 @@ from ...config import env
 
 log = logging.getLogger(__name__)
 
-# API cap for a components v2 message: every container, section, text display,
-# button and accessory counts.
+# API caps for a components v2 message: total components, and the total number of
+# characters across every text display. Both are counted recursively (containers
+# and sections included).
 MAX_COMPONENTS = 40
+MAX_TEXT_CHARS = 4000
 
-# Discord rejects any message whose text exceeds this many characters.
-DISCORD_MESSAGE_LIMIT = 2000
+# What the modal lets a scheduler type. Comfortably below MAX_TEXT_CHARS so the
+# static parts of the announcement still fit alongside a long description; the view
+# trims the description against the real total at render time.
+DESCRIPTION_MAX_LENGTH = 3500
 
 # Experience codes are always short (6 chars for a BF Portal code). We enforce
 # this on the modal input so the announcement's fixed overhead stays bounded.
@@ -117,8 +121,10 @@ def meta_texts(code: str, roles: list[discord.Role], user_id: int) -> list[str]:
 def announcement_overhead(role_ids: Iterable[int]) -> int:
     """Worst-case length of everything in the announcement except the description.
 
-    Every other text display is bounded, so summing their maxima tells us how
-    many characters are left for the description.
+    The description is the only unbounded part the scheduler controls, so summing
+    the maxima of the static parts (header, code/regions, footer) tells us how many
+    characters are left for it. Anything the announcement adds later that cannot be
+    bounded here is covered by :func:`_fit_description` instead.
     """
     mentions = [f"<@&{role_id}>" for role_id in role_ids]
     regions_line = (
@@ -137,7 +143,28 @@ def announcement_overhead(role_ids: Iterable[int]) -> int:
 
 def description_char_budget(role_ids: Iterable[int]) -> int:
     """How many description characters fit before the message exceeds the limit."""
-    return DISCORD_MESSAGE_LIMIT - announcement_overhead(role_ids)
+    available = MAX_TEXT_CHARS - announcement_overhead(role_ids)
+    return max(min(DESCRIPTION_MAX_LENGTH, available), 0)
+
+
+def _fit_description(description: str, others: Iterable[str]) -> str:
+    """Shorten the description until every text display fits the v2 text budget.
+
+    The modal already caps the description, but anything appended later can push the
+    total over. Trimming here is the last line of defence: Discord rejects the whole
+    message with a 400 otherwise.
+    """
+    budget = MAX_TEXT_CHARS - sum(len(text) for text in others)
+    if len(description) <= budget:
+        return description
+
+    log.warning(
+        "Trimming the playtest description by %s characters to fit the %s character"
+        " components v2 budget",
+        len(description) - budget,
+        MAX_TEXT_CHARS,
+    )
+    return description[: max(budget - 1, 0)].rstrip() + "…"
 
 
 async def get_announcement_channel(guild: discord.Guild | None) -> TextChannel | None:
@@ -169,6 +196,8 @@ def build_announcement_view(
     """
     header = header_text(seed)
     metas = meta_texts(code, roles, user_id)
+
+    description = _fit_description(description, [header, *metas])
 
     children: list[discord.ui.Item] = [
         discord.ui.TextDisplay(header),
